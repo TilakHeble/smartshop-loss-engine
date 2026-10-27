@@ -1,0 +1,37 @@
+name: smartshop
+version: "0.2.0"
+config-version: 2
+profile: smartshop
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages", "logs"]
+
+vars:
+  # Households join the panel over weeks 1-16 (Nectar EDA), so analysis starts in week 17.
+  first_stable_week: 17
+  # Last day of data to use. The point-in-time test rebuilds with a lower value and checks that
+  # every trip before the cut-off gets exactly the same history.
+  max_day: 711
+  # Evening peak used for capacity context (4pm-7pm carries 30% of daytime trips).
+  peak_hours: [16, 17, 18]
+
+models:
+  smartshop:
+    staging:
+      +schema: staging
+      +materialized: view
+    marts:
+      +schema: marts
+      +materialized: table
+
+seeds:
+  smartshop:
+    +schema: seeds
+    high_risk_categories:
+      +column_types: {risk_group: varchar, match_on: varchar, value: varchar}
+    non_scan_departments:
+      +column_types: {department: varchar, reason: varchar}

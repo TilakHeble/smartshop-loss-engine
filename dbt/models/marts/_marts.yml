@@ -1,0 +1,102 @@
+version: 2
+
+models:
+  - name: fct_scan_line
+    description: One row per scanned item line (weeks 17+), with normal and Nectar price and risk group.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [basket_id, product_id]
+      - unique_combination:
+          arguments:
+            columns: [basket_id, value_rank]
+    columns:
+      - name: nectar_value
+        data_tests: [positive_values]
+      - name: quantity
+        data_tests:
+          - between:
+              arguments: {min_value: 1, max_value: 200}
+      - name: basket_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fct_trip')
+                field: basket_id
+
+  - name: fct_trip
+    description: One row per SmartShop session (shopping trip).
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [member_id, trip_seq]
+    columns:
+      - name: basket_id
+        data_tests: [unique, not_null]
+      - name: member_id
+        data_tests: [not_null]
+      - name: nectar_value
+        data_tests: [positive_values]
+      - name: high_risk_share
+        data_tests:
+          - between:
+              arguments: {min_value: 0, max_value: 1}
+      - name: top3_value_share
+        data_tests:
+          - between:
+              arguments: {min_value: 0, max_value: 1.000001}
+
+  - name: fct_trip_history
+    description: >
+      Point-in-time shopper history at the start of each session, built only from the member's
+      earlier trips. The pytest suite rebuilds it on truncated data and checks it is identical.
+    columns:
+      - name: basket_id
+        data_tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fct_trip')
+                field: basket_id
+      - name: days_since_last_trip
+        data_tests:
+          - between:
+              arguments: {min_value: 0, max_value: 711}
+      - name: prior_share_this_store
+        data_tests:
+          - between:
+              arguments: {min_value: 0, max_value: 1}
+
+  - name: dim_member
+    description: One row per member over the whole window (reporting only; no demographics).
+    columns:
+      - name: member_id
+        data_tests: [unique, not_null]
+      - name: main_store_share
+        data_tests:
+          - between:
+              arguments: {min_value: 0, max_value: 1}
+
+  - name: dim_product
+    description: Scanned products with risk group and normal / Nectar unit prices.
+    columns:
+      - name: product_id
+        data_tests: [unique, not_null]
+      - name: avg_discount_rate
+        data_tests:
+          - between:
+              arguments: {min_value: 0, max_value: 1}
+
+  - name: dim_store
+    columns:
+      - name: store_id
+        data_tests: [unique, not_null]
+
+  - name: mart_store_hour
+    description: Store x hour demand per open day, the input to rescan capacity (week 6).
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [store_id, hour_of_day]

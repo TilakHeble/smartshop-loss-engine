@@ -16,5 +16,10 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: ruff check src tests
       - run: ruff format --check src tests
-      # Data tests skip automatically when the warehouse has not been built (raw data is not committed).
+      - name: dbt parse (compiles every model and test)
+        run: cd dbt && dbt parse --profiles-dir .
+        env:
+          SMARTSHOP_WAREHOUSE: /tmp/ci.duckdb
+      # pytest builds a synthetic warehouse and runs the full dbt build + tests and the
+      # point-in-time check on it. Real-data tests skip (raw data is not committed).
       - run: pytest -q

@@ -7796,7 +7796,7 @@ a.anchor-link {
 <!-- End of mermaid configuration --></head>
 <body class="jp-Notebook" data-jp-theme-light="true" data-jp-theme-name="JupyterLab Light">
 <main>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=708441d0">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=86a2be2d">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7816,7 +7816,7 @@ loyalty card, so non-Nectar shoppers are also simulated later.</p>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=461cbbc8">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=08a52615">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7826,7 +7826,7 @@ loyalty card, so non-Nectar shoppers are also simulated later.</p>
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">smartshop.lines</span><span class="w"> </span><span class="kn">import</span> <span class="n">connect</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">smartshop.warehouse</span><span class="w"> </span><span class="kn">import</span> <span class="n">connect</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">smartshop.viz</span><span class="w"> </span><span class="kn">import</span> <span class="n">BLUE</span><span class="p">,</span> <span class="n">GREY</span><span class="p">,</span> <span class="n">ORANGE</span><span class="p">,</span> <span class="n">TEXT_2</span><span class="p">,</span> <span class="n">money</span><span class="p">,</span> <span class="n">pct</span><span class="p">,</span> <span class="n">save</span><span class="p">,</span> <span class="n">set_style</span><span class="p">,</span> <span class="n">subtitle</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
 
@@ -7839,15 +7839,15 @@ loyalty card, so non-Nectar shoppers are also simulated later.</p>
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=7bb5a5f4">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=3e275b87">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h2 id="The-scan-lines">The scan lines<a class="anchor-link" href="#The-scan-lines">¶</a></h2><p><code>scan_lines</code> keeps the items a shopper would scan: fuel, till-only entries, returns and voids
-are removed, and weeks 1–16 (while households were still joining the panel) are dropped, as in
-the Nectar project. Each line carries two prices:</p>
+<h2 id="The-scan-lines">The scan lines<a class="anchor-link" href="#The-scan-lines">¶</a></h2><p>The analysis reads the dbt warehouse (<code>make dbt</code>). <code>marts.fct_scan_line</code> keeps the items a
+shopper would scan: fuel, till-only entries, returns and voids are removed, and weeks 1–16
+(while households were still joining the panel) are dropped, as in the Nectar project. Each line carries two prices:</p>
 <ul>
 <li><strong>normal price</strong> (<code>shelf_value</code>): what a non-member pays</li>
 <li><strong>Nectar price</strong> (<code>nectar_value</code>): the price with the member discount</li>
@@ -7855,7 +7855,7 @@ the Nectar project. Each line carries two prices:</p>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=caac536f">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=85dd6cfc">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7867,7 +7867,7 @@ the Nectar project. Each line carries two prices:</p>
 <span class="s1">SELECT COUNT(*) AS lines, COUNT(DISTINCT basket_id) AS trips, COUNT(DISTINCT member_id) AS members,</span>
 <span class="s1">       COUNT(DISTINCT store_id) AS stores, ROUND(SUM(shelf_value)) AS normal_price_total,</span>
 <span class="s1">       ROUND(SUM(nectar_value)) AS nectar_price_total</span>
-<span class="s1">FROM scan_lines</span>
+<span class="s1">FROM marts.fct_scan_line</span>
 <span class="s1">'''</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -7925,7 +7925,7 @@ the Nectar project. Each line carries two prices:</p>
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=d4a3c709">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=a2be2b4e">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7935,7 +7935,7 @@ the Nectar project. Each line carries two prices:</p>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=278ef1d2">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=5d9c9947">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7945,7 +7945,7 @@ the Nectar project. Each line carries two prices:</p>
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">baskets</span> <span class="o">=</span> <span class="n">q</span><span class="p">(</span><span class="s1">'''</span>
 <span class="s1">SELECT basket_id, COUNT(*) AS lines, SUM(quantity) AS units, SUM(nectar_value) AS value</span>
-<span class="s1">FROM scan_lines GROUP BY 1</span>
+<span class="s1">FROM marts.fct_scan_line GROUP BY 1</span>
 <span class="s1">'''</span><span class="p">)</span>
 <span class="n">summary</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">({</span>
     <span class="s1">'median lines'</span><span class="p">:</span> <span class="n">baskets</span><span class="o">.</span><span class="n">lines</span><span class="o">.</span><span class="n">median</span><span class="p">(),</span>
@@ -7979,7 +7979,7 @@ dtype: float64</pre>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=980dbf11">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=65498072">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8015,7 +8015,7 @@ dtype: float64</pre>
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=d03303ca">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=f5a66132">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8026,7 +8026,7 @@ basket's value, checking the <em>right</em> three recovers far more than checkin
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=65c3f8af">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=0048c94a">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8040,7 +8040,7 @@ basket's value, checking the <em>right</em> three recovers far more than checkin
 <span class="s1">           ROW_NUMBER() OVER (PARTITION BY basket_id ORDER BY nectar_value DESC) AS rk,</span>
 <span class="s1">           COUNT(*) OVER (PARTITION BY basket_id) AS n,</span>
 <span class="s1">           SUM(nectar_value) OVER (PARTITION BY basket_id) AS total</span>
-<span class="s1">    FROM scan_lines</span>
+<span class="s1">    FROM marts.fct_scan_line</span>
 <span class="s1">), b AS (</span>
 <span class="s1">    SELECT basket_id, ANY_VALUE(n) AS n, SUM(v) FILTER (WHERE rk &lt;= 3) / ANY_VALUE(total) AS top3</span>
 <span class="s1">    FROM r GROUP BY 1</span>
@@ -8125,7 +8125,7 @@ basket's value, checking the <em>right</em> three recovers far more than checkin
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=7fdc160a">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=494f98bd">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8166,19 +8166,20 @@ basket's value, checking the <em>right</em> three recovers far more than checkin
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=312e85c4">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=45106e73">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 <h2 id="3.-High-risk-categories">3. High-risk categories<a class="anchor-link" href="#3.-High-risk-categories">¶</a></h2><p>A working list of products UK retailers commonly tag or keep behind the counter: fresh meat
-and fish, alcohol, tobacco, health &amp; beauty, baby and coffee (<code>config.HIGH_RISK_COMMODITIES</code>).
-It is an assumption to start from; v2 replaces it with a data-driven ranking.</p>
+and fish, alcohol, tobacco, health &amp; beauty, baby and coffee .
+It lives in the dbt seed <code>high_risk_categories.csv</code>: an assumption to start from, which v2
+replaces with a data-driven ranking.</p>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=20052dc1">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=ddca5d35">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8189,7 +8190,7 @@ It is an assumption to start from; v2 replaces it with a data-driven ranking.</p
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">risk</span> <span class="o">=</span> <span class="n">q</span><span class="p">(</span><span class="s1">'''</span>
 <span class="s1">SELECT COALESCE(risk_group, 'Other') AS grp, COUNT(*) AS lines, SUM(nectar_value) AS value,</span>
 <span class="s1">       SUM(nectar_value) / SUM(quantity) AS price_per_unit</span>
-<span class="s1">FROM scan_lines GROUP BY 1</span>
+<span class="s1">FROM marts.fct_scan_line GROUP BY 1</span>
 <span class="s1">'''</span><span class="p">)</span>
 <span class="n">risk</span><span class="p">[</span><span class="s1">'share_lines'</span><span class="p">]</span> <span class="o">=</span> <span class="n">risk</span><span class="o">.</span><span class="n">lines</span> <span class="o">/</span> <span class="n">risk</span><span class="o">.</span><span class="n">lines</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
 <span class="n">risk</span><span class="p">[</span><span class="s1">'share_value'</span><span class="p">]</span> <span class="o">=</span> <span class="n">risk</span><span class="o">.</span><span class="n">value</span> <span class="o">/</span> <span class="n">risk</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
@@ -8304,7 +8305,7 @@ It is an assumption to start from; v2 replaces it with a data-driven ranking.</p
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=6d5e9faa">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=be736169">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8345,7 +8346,7 @@ It is an assumption to start from; v2 replaces it with a data-driven ranking.</p
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=ef4a7c8a">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=8f3e278e">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8356,7 +8357,7 @@ It is an assumption to start from; v2 replaces it with a data-driven ranking.</p
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">q</span><span class="p">(</span><span class="s1">'''</span>
 <span class="s1">WITH b AS (</span>
 <span class="s1">    SELECT basket_id, COUNT(*) AS n, MAX((risk_group IS NOT NULL)::INT) AS any_risk</span>
-<span class="s1">    FROM scan_lines GROUP BY 1</span>
+<span class="s1">    FROM marts.fct_scan_line GROUP BY 1</span>
 <span class="s1">)</span>
 <span class="s1">SELECT AVG(any_risk) AS trips_with_any_high_risk,</span>
 <span class="s1">       AVG(any_risk) FILTER (WHERE n &gt;= 10) AS trips_10plus_with_any_high_risk</span>
@@ -8410,7 +8411,7 @@ It is an assumption to start from; v2 replaces it with a data-driven ranking.</p
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=048dc672">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=2b621815">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8421,7 +8422,7 @@ member that is the Nectar price, so valuing loss at the normal shelf price overs
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=7ddcfdc3">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=8d717171">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8434,11 +8435,11 @@ member that is the Nectar price, so valuing loss at the normal shelf price overs
 <span class="s1">       AVG((member_discount &gt; 0)::INT) AS share_lines_with_nectar_price,</span>
 <span class="s1">       1 - SUM(nectar_value) / SUM(shelf_value) AS avg_discount,</span>
 <span class="s1">       SUM(shelf_value) / SUM(nectar_value) - 1 AS overstatement_at_shelf_price</span>
-<span class="s1">FROM scan_lines GROUP BY 1</span>
+<span class="s1">FROM marts.fct_scan_line GROUP BY 1</span>
 <span class="s1">UNION ALL</span>
 <span class="s1">SELECT 'All items', AVG((member_discount &gt; 0)::INT), 1 - SUM(nectar_value) / SUM(shelf_value),</span>
 <span class="s1">       SUM(shelf_value) / SUM(nectar_value) - 1</span>
-<span class="s1">FROM scan_lines</span>
+<span class="s1">FROM marts.fct_scan_line</span>
 <span class="s1">'''</span><span class="p">)</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s1">'grp'</span><span class="p">)</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="s1">'overstatement_at_shelf_price'</span><span class="p">)</span>
 <span class="n">disc</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
 </pre></div>
@@ -8538,7 +8539,7 @@ member that is the Nectar price, so valuing loss at the normal shelf price overs
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=76094bf5">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=5d66d2ed">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8577,7 +8578,7 @@ member that is the Nectar price, so valuing loss at the normal shelf price overs
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=a49a7e43">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=8e79690f">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8587,7 +8588,7 @@ member that is the Nectar price, so valuing loss at the normal shelf price overs
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=d73c7c51">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=af87dd8f">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8599,7 +8600,7 @@ member that is the Nectar price, so valuing loss at the normal shelf price overs
 <span class="s1">SELECT AVG((quantity &gt; 1)::INT) AS share_lines_multi_unit,</span>
 <span class="s1">       SUM(quantity) FILTER (WHERE quantity &gt; 1) / SUM(quantity) AS share_units_in_multi_lines,</span>
 <span class="s1">       SUM(nectar_value) FILTER (WHERE quantity &gt; 1) / SUM(nectar_value) AS share_value_in_multi_lines</span>
-<span class="s1">FROM scan_lines</span>
+<span class="s1">FROM marts.fct_scan_line</span>
 <span class="s1">'''</span><span class="p">)</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -8651,7 +8652,7 @@ member that is the Nectar price, so valuing loss at the normal shelf price overs
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=f8765e47">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=866b4d78">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8661,7 +8662,7 @@ member that is the Nectar price, so valuing loss at the normal shelf price overs
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=0b1fa0a1">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=aed8e585">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8670,7 +8671,7 @@ member that is the Nectar price, so valuing loss at the normal shelf price overs
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">hours</span> <span class="o">=</span> <span class="n">q</span><span class="p">(</span><span class="s1">'''</span>
-<span class="s1">SELECT hour_of_day, COUNT(DISTINCT basket_id) AS trips FROM scan_lines GROUP BY 1 ORDER BY 1</span>
+<span class="s1">SELECT hour_of_day, COUNT(DISTINCT basket_id) AS trips FROM marts.fct_scan_line GROUP BY 1 ORDER BY 1</span>
 <span class="s1">'''</span><span class="p">)</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s1">'hour_of_day'</span><span class="p">)</span>
 <span class="n">day</span> <span class="o">=</span> <span class="n">hours</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">7</span><span class="p">:</span><span class="mi">22</span><span class="p">]</span>
 <span class="n">peak_share</span> <span class="o">=</span> <span class="n">day</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">16</span><span class="p">:</span><span class="mi">18</span><span class="p">,</span> <span class="s1">'trips'</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="n">day</span><span class="o">.</span><span class="n">trips</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
@@ -8694,7 +8695,7 @@ member that is the Nectar price, so valuing loss at the normal shelf price overs
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=643ceddf">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=c442cff0">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8730,7 +8731,7 @@ member that is the Nectar price, so valuing loss at the normal shelf price overs
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=f6e49bbb">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=b0dbd095">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8741,7 +8742,7 @@ member: if shoppers use several stores, only a Nectar-linked, member-level score
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=bbcbbf25">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=88070338">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8750,12 +8751,12 @@ member: if shoppers use several stores, only a Nectar-linked, member-level score
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
 <div class="highlight hl-ipython3"><pre><span></span><span class="n">hist</span> <span class="o">=</span> <span class="n">q</span><span class="p">(</span><span class="s1">'''</span>
-<span class="s1">WITH b AS (SELECT member_id, basket_id, MIN(day) AS d FROM scan_lines GROUP BY 1, 2),</span>
+<span class="s1">WITH b AS (SELECT member_id, basket_id, MIN(day) AS d FROM marts.fct_scan_line GROUP BY 1, 2),</span>
 <span class="s1">r AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY member_id ORDER BY d, basket_id) - 1 AS prior_trips FROM b)</span>
 <span class="s1">SELECT prior_trips FROM r</span>
 <span class="s1">'''</span><span class="p">)</span>
 <span class="n">members</span> <span class="o">=</span> <span class="n">q</span><span class="p">(</span><span class="s1">'''</span>
-<span class="s1">WITH ms AS (SELECT member_id, store_id, COUNT(DISTINCT basket_id) AS n FROM scan_lines GROUP BY 1, 2)</span>
+<span class="s1">WITH ms AS (SELECT member_id, store_id, COUNT(DISTINCT basket_id) AS n FROM marts.fct_scan_line GROUP BY 1, 2)</span>
 <span class="s1">SELECT member_id, SUM(n) AS trips, COUNT(*) AS stores, MAX(n) * 1.0 / SUM(n) AS main_store_share</span>
 <span class="s1">FROM ms GROUP BY 1</span>
 <span class="s1">'''</span><span class="p">)</span>
@@ -8790,7 +8791,7 @@ dtype: float64</pre>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=c0c72279">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=25154622">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8825,7 +8826,7 @@ dtype: float64</pre>
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=b8ecf914">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=fa30813d">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>

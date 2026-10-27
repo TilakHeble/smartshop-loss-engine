@@ -8,7 +8,7 @@ SmartShop (scan-as-you-shop) loses money when items leave unscanned: some on pur
 
 It is the companion to the [Nectar Offer Engine](https://github.com/TilakHeble/nectar-offer-engine): the same members, the same data and shared code. Nectar decides each member's personalised prices; SmartShop is where the member sees them, Nectar price next to normal price, while scanning.
 
-> Status: **week 1 of 10 complete** (repo, ingestion, EDA).
+> Status: **weeks 1–2 of 10 complete** (ingestion, EDA, dbt warehouse). 47 dbt data tests and 21 Python tests, including a point-in-time leakage test, run in CI on every push.
 
 ## What makes it different
 
@@ -41,6 +41,40 @@ It is the companion to the [Nectar Offer Engine](https://github.com/TilakHeble/n
 
 Full analysis: [`notebooks/01_eda.ipynb`](notebooks/01_eda.ipynb) (HTML export in `reports/`).
 
+## Week 2: the warehouse
+
+A dbt project on DuckDB turns raw transactions into the tables every later week reads from.
+
+```mermaid
+flowchart LR
+    R[raw.transactions<br/>raw.products] --> S[stg_transactions<br/>normal + Nectar price]
+    SD[seeds<br/>high-risk list<br/>non-scan departments] --> P[stg_products<br/>risk group]
+    P --> S
+    S --> L[fct_scan_line<br/>item line]
+    L --> T[fct_trip<br/>session]
+    T --> H[fct_trip_history<br/>point-in-time shopper history]
+    T --> M[dim_member · dim_store<br/>mart_store_hour]
+    L --> D[dim_product<br/>unit prices]
+    R --> X[stg_member_demographics<br/>fairness only]
+```
+
+| Model | Grain | What it is for |
+|---|---|---|
+| `fct_scan_line` | Item line | What was scanned, at normal and Nectar price, with risk group and value rank in the basket. Week 3 expands it into timed scans |
+| `fct_trip` | Session | Basket size, value, high-risk share, multi-buys, top-3 value share, peak-hour flag, member's trip number |
+| `fct_trip_history` | Session | What the system knows about the shopper **when the session starts**: earlier trips, stores, days since last trip, usual basket. Built only from earlier trips |
+| `dim_product` | Product | Normal and Nectar unit prices, used to value an unscanned item at the shopper's price |
+| `dim_member`, `dim_store` | Member / store | Reporting: main store, stores used, demand profile |
+| `mart_store_hour` | Store × hour | Sessions and items arriving per open day: the input to rescan capacity (week 6) |
+| `stg_member_demographics` | Member | **Fairness checks only.** Kept apart, and a test fails if any feature table carries a demographic column |
+
+**Tests that protect the later weeks**
+- **No leakage.** A pytest rebuilds the warehouse with the data cut off at day 400 and checks every earlier session gets *exactly* the same history. Checked by planting a leak (one history column using the member's whole period): the test fails and names the column.
+- **Money reconciles.** Line totals equal session totals equal staging, to the cent; the Nectar price is never above the normal price.
+- **Business rules are data.** The high-risk list and non-scan departments are dbt seeds, with a test that every seed entry exists in the product table, so a typo can't silently drop a category.
+- **CI runs the real pipeline.** Raw data is never committed, so CI generates a small synthetic warehouse with the same schema (every high-risk product, fuel lines, returns, multi-store members) and runs the full dbt build, all 47 data tests and the leakage test on it.
+- The rebuilt marts reproduce the week 1 analysis exactly, figure for figure.
+
 ## What is real and what is simulated
 
 SmartShop data isn't public, and loss needs a known ground truth to evaluate against.
@@ -69,7 +103,7 @@ Simulated rates are calibrated to published UK retail-loss research and recorded
 | Week | Deliverable |
 |---|---|
 | 1 ✅ | Repo, ingestion (shared with Nectar), SmartShop EDA |
-| 2 | dbt warehouse: session, scan-event (normal and Nectar price) and shopper-history models, with tests |
+| 2 ✅ | dbt warehouse: session, scan-line (normal and Nectar price) and point-in-time shopper-history models, with tests |
 | 3 | Session simulator: honest, careless, opportunist, deliberate and adaptive shoppers, calibrated to published UK figures |
 | 4 | Basket model: which items are probably in the basket but unscanned |
 | 5 | Session risk model against three baselines: random, simple rules, top-k |
@@ -89,26 +123,31 @@ Needs the 7 Complete Journey CSVs used here (the in-store promotions file is not
 pip install -e ".[dev]"     # also installs the Nectar engine, pinned to an exact commit
 # put the CSVs in data/raw/
 make ingest                 # CSV -> typed Parquet + DuckDB warehouse (~3 s)
+make dbt                    # build and test the staging and mart models (~15 s)
 make eda                    # run the EDA notebook and export HTML
-make test                   # unit tests + data-quality contract
+make test                   # unit, leakage and data-quality tests
+make dbt-docs               # browse model documentation and lineage
+make sample                 # no data? build a synthetic warehouse with the same schema
 ```
 
-On Windows without `make`: `python -m smartshop.ingest.load_raw`, then `pytest -q`. Use Python 3.12, as for Nectar.
+On Windows without `make`: `python -m smartshop.ingest.load_raw`, then `cd dbt; dbt build --profiles-dir .; cd ..`, then `pytest -q`. Use Python 3.12, as for Nectar.
 
 ## Repository layout
 
 ```
 ├── src/smartshop/
-│   ├── config.py            # paths, non-scan departments, high-risk category list
+│   ├── config.py            # paths; reads business rules from dbt seeds
 │   ├── ingest/load_raw.py   # reuses Nectar's typed table specs -> Parquet + DuckDB
-│   ├── lines.py             # scan_lines view: scanned items with normal + Nectar price
+│   ├── ingest/sample.py     # synthetic warehouse with the real schema (CI, demos)
+│   ├── warehouse.py         # connect to DuckDB, run dbt from Python
 │   └── viz.py               # chart style shared with Nectar
+├── dbt/                     # seeds, staging, marts, 47 data tests
 ├── notebooks/               # 01 EDA
 ├── reports/                 # HTML export + figures
-├── tests/                   # scan_lines unit tests (synthetic) + data-quality contract
-└── .github/workflows/ci.yml # ruff + pytest
+├── tests/                   # marts on synthetic data, point-in-time leakage, data-quality contract
+└── .github/workflows/ci.yml # ruff + dbt parse + pytest (full dbt build on synthetic data)
 ```
 
 ## Tech stack
 
-Python · SQL · DuckDB · Parquet · pytest · GitHub Actions. To come: dbt · LightGBM · PuLP · MLflow · FastAPI · Docker · Prefect · Streamlit.
+Python · SQL · DuckDB · Parquet · dbt · pytest · GitHub Actions. To come: LightGBM · PuLP · MLflow · FastAPI · Docker · Prefect · Streamlit.

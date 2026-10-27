@@ -1,0 +1,10 @@
+version: 2
+
+sources:
+  - name: raw
+    description: Typed Complete Journey tables written by smartshop.ingest.load_raw (Nectar's specs).
+    schema: raw
+    tables:
+      - name: transactions
+      - name: products
+      - name: households

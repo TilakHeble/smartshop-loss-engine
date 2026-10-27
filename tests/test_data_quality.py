@@ -1,19 +1,19 @@
-"""Data-quality contract for the warehouse and the scan_lines view.
+"""Data-quality contract for the real warehouse (raw tables and dbt marts).
 
 Runs against data/warehouse/smartshop.duckdb and is skipped when it has not been built
-(e.g. in CI, where raw data is not committed).
+(e.g. in CI, where raw data is not committed). Expected figures pin the Week 1 analysis.
 """
 
 import pytest
 
-from smartshop.config import NON_SCAN_DEPARTMENTS, WAREHOUSE_PATH
+from smartshop.config import WAREHOUSE_PATH
 
 pytestmark = pytest.mark.skipif(not WAREHOUSE_PATH.exists(), reason="warehouse not built")
 
 
 @pytest.fixture(scope="module")
 def con():
-    from smartshop.lines import connect
+    from smartshop.warehouse import connect
 
     c = connect()
     yield c
@@ -36,34 +36,26 @@ def scalar(con, sql):
         ("coupon_redemptions", 2_318),
     ],
 )
-def test_row_counts(con, table, expected_rows):
+def test_raw_row_counts(con, table, expected_rows):
     assert scalar(con, f"SELECT COUNT(*) FROM raw.{table}") == expected_rows
 
 
-def test_scan_lines_size(con):
-    assert scalar(con, "SELECT COUNT(*) FROM scan_lines") == 2_348_715
-    assert scalar(con, "SELECT COUNT(DISTINCT basket_id) FROM scan_lines") == 230_489
+def test_marts_reproduce_week_1(con):
+    assert scalar(con, "SELECT COUNT(*) FROM marts.fct_scan_line") == 2_348_715
+    assert scalar(con, "SELECT COUNT(*) FROM marts.fct_trip") == 230_489
+    assert scalar(con, "SELECT COUNT(*) FROM marts.dim_member") == 2_492
+    assert scalar(con, "SELECT COUNT(*) FROM marts.dim_store") == 532
+    assert scalar(con, "SELECT ROUND(SUM(nectar_value)) FROM marts.fct_trip") == 6_817_025
 
 
-def test_no_non_scan_departments(con):
-    depts = ", ".join(f"'{d}'" for d in NON_SCAN_DEPARTMENTS)
-    assert scalar(con, f"SELECT COUNT(*) FROM scan_lines WHERE department IN ({depts})") == 0
+def test_high_risk_share_is_stable(con):
+    share = scalar(con, "SELECT SUM(high_risk_value) / SUM(nectar_value) FROM marts.fct_trip")
+    assert 0.15 < share < 0.25
 
 
-def test_prices_are_consistent(con):
-    bad = scalar(
-        con,
-        """
-        SELECT COUNT(*) FROM scan_lines
-        WHERE nectar_value <= 0 OR shelf_value < nectar_value - 1e-9 OR member_discount < 0
-        """,
-    )
-    assert bad == 0
-
-
-def test_quantities_are_plausible(con):
-    assert scalar(con, "SELECT MIN(quantity) FROM scan_lines") >= 1
-    assert scalar(con, "SELECT MAX(quantity) FROM scan_lines") <= 200
+def test_most_trips_have_history(con):
+    share = scalar(con, "SELECT AVG((prior_trips >= 10)::INT) FROM marts.fct_trip_history")
+    assert share > 0.85
 
 
 def test_each_basket_has_one_member_store_and_day(con):
@@ -71,18 +63,9 @@ def test_each_basket_has_one_member_store_and_day(con):
         con,
         """
         SELECT COUNT(*) FROM (
-            SELECT basket_id FROM scan_lines GROUP BY 1
+            SELECT basket_id FROM marts.fct_scan_line GROUP BY 1
             HAVING COUNT(DISTINCT member_id) > 1 OR COUNT(DISTINCT store_id) > 1
                 OR COUNT(DISTINCT day) > 1
         )""",
     )
     assert bad == 0
-
-
-def test_high_risk_share_is_stable(con):
-    share = scalar(
-        con,
-        "SELECT SUM(nectar_value) FILTER (WHERE risk_group IS NOT NULL) / SUM(nectar_value) "
-        "FROM scan_lines",
-    )
-    assert 0.15 < share < 0.25

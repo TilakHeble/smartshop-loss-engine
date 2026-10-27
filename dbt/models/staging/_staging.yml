@@ -1,0 +1,64 @@
+version: 2
+
+models:
+  - name: stg_transactions
+    description: One row per basket line with normal (shelf) and Nectar price, and an is_scan_line flag.
+    columns:
+      - name: basket_id
+        data_tests: [not_null]
+      - name: member_id
+        data_tests: [not_null]
+      - name: product_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_products')
+                field: product_id
+      - name: member_discount
+        data_tests:
+          - between:
+              arguments: {min_value: 0, max_value: 1000}
+      - name: hour_of_day
+        data_tests:
+          - between:
+              arguments: {min_value: 0, max_value: 23}
+
+  - name: stg_products
+    description: Products with their high-risk group (seed) and whether they are scanned items.
+    columns:
+      - name: product_id
+        data_tests: [unique, not_null]
+      - name: risk_group
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["Fresh meat & fish", "Alcohol", "Tobacco", "Health & beauty", "Baby", "Coffee"]
+
+  - name: stg_member_demographics
+    description: Demographics for 801 members. Fairness checks only; never joined into features.
+    columns:
+      - name: member_id
+        data_tests: [unique, not_null]
+
+seeds:
+  - name: high_risk_categories
+    description: >
+      Working list of high-risk products (commonly tagged or kept behind the counter in UK
+      grocery). An assumption to start from; v2 replaces it with a data-driven ranking.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [match_on, value]
+    columns:
+      - name: match_on
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["commodity", "department"]
+
+  - name: non_scan_departments
+    description: Departments whose lines are not items a shopper scans (fuel, till-only, coupons).
+    columns:
+      - name: department
+        data_tests: [unique, not_null]

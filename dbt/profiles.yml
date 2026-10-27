@@ -1,0 +1,7 @@
+smartshop:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('SMARTSHOP_WAREHOUSE', '../data/warehouse/smartshop.duckdb') }}"
+      threads: 4
