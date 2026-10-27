@@ -1,0 +1,27 @@
+# data (never commit raw or derived data)
+data/raw/*
+data/processed/*
+data/warehouse/*
+!data/**/.gitkeep
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# tooling
+mlruns/
+mlflow.db
+.env
+.DS_Store
+build/
+
+# dbt
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/
+dbt/.user.yml

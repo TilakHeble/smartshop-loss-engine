@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "smartshop-loss-engine"
+version = "0.1.0"
+description = "Risk-based SmartShop rescans: game-theory rescan policy, targeted item checks and Nectar-linked trust"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    # Shared ingestion specs, member IDs and chart style, pinned to an exact commit of the
+    # Nectar offer engine so changes there cannot break this project.
+    "nectar-offer-engine @ git+https://github.com/TilakHeble/nectar-offer-engine@284e0a8b64553711b908a4ba0dea018c8f1f8149",
+    "duckdb>=1.0",
+    "pandas>=2.0",
+    "pyarrow>=14.0",
+    "numpy>=1.26",
+    "matplotlib>=3.8",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pytest-cov", "ruff>=0.5", "pre-commit", "jupyter", "nbconvert"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
