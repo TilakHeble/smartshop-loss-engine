@@ -143,6 +143,8 @@ def run_cycles(
                 "found": found,
                 "found_units": np.where(found, missed_units, 0),
                 "found_value": np.where(found, missed_value, 0.0),
+                "u": u_rescan[idx],  # the draw that decided the rescan (u < floor: audit sample)
+                "net_loss": gc.matrix("net_loss")[choice, cols],
                 "cycle": c + 1,
             }
         )

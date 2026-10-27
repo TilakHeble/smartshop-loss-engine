@@ -8,7 +8,7 @@ SmartShop (scan-as-you-shop) loses money when items leave unscanned: some on pur
 
 It is the companion to the [Nectar Offer Engine](https://github.com/TilakHeble/nectar-offer-engine): the same members, the same data and shared code. Nectar decides each member's personalised prices; SmartShop is where the member sees them, Nectar price next to normal price, while scanning.
 
-> Status: **weeks 1–7 of 10 complete** (ingestion, EDA, dbt warehouse, calibrated simulator, basket model, risk model, rescan policy, trust and targeted checks). 47 dbt data tests and 52 Python tests, including point-in-time leakage tests, run in CI on every push.
+> Status: **weeks 1–8 of 10 complete** (data, warehouse, calibrated simulator, basket model, risk model, rescan game, trust, headline and stress tests). 47 dbt data tests and 55 Python tests, including point-in-time leakage tests, run in CI on every push.
 
 ## What makes it different
 
@@ -19,7 +19,16 @@ It is the companion to the [Nectar Offer Engine](https://github.com/TilakHeble/n
 | **Nectar-linked trust** | Clean full rescans earn a member fewer rescans (up to 75% off, per member across stores); a small honest slip does not reset it; the random floor always applies. A modest fairness refinement that thieves cannot easily earn |
 | **True loss from biased rescans** | Known rescan probabilities give an unbiased (inverse-probability-weighted) estimate of total loss, including sessions never checked |
 
-**Target headline:** with the same colleague time, recover more loss than random rescans *and* stop fewer honest shoppers, while holding up against shoppers who adapt.
+## Headline result
+
+**With the same colleague time as today's random rescans, the recommended policy leaves 12% less loss, recovers 5.6x as much (\$11 to \$59 per colleague hour) and stops 69% fewer honest shoppers**, judged against shoppers who learn the policy and respond (test period, mean of 10 runs, range ±0.4%).
+
+![Headline](reports/figures/17_headline.png)
+
+- **It survives every stress test:** across ten scenarios that each change one assumption and rerun the whole chain, loss is 6–13% lower, recovery 3.9–6.4x and honest stops down 69–70% ([details](#week-8-the-headline-measurement-and-stress-tests)).
+- **Detection, not deterrence, does the work.** Thieves who adapt do exploit a simple threshold, but deterring them would need about a one-in-three rescan chance; randomising beats a threshold by at most 1.4% in any scenario. Judging a policy against shoppers who do not respond overstates it by 20–52%.
+- **Loss stays measurable.** Once rescans are targeted, averaging what they find overstates loss 3.7x; weighting each rescan by its known probability is unbiased, and the 2% random floor is the cross-check.
+- **Ideas that did not earn their place are reported, not hidden:** targeted partial checks (full rescans recover more per colleague-minute) and in-app "did you forget" prompts (mostly wrong).
 
 ## Week 1 findings
 
@@ -218,6 +227,41 @@ Two ideas tested on the rescan game, with colleague time held at today's level.
 
 Full analysis: [`notebooks/06_trust_and_targeting.ipynb`](notebooks/06_trust_and_targeting.ipynb). The recommended policy (week 6 randomised policy plus this trust rule) is stored in `models/policy.json`.
 
+## Week 8: the headline, measurement and stress tests
+
+**Headline** (test period, today's colleague time, shoppers respond, trust over four cycles, 10 runs):
+
+| | Today | Recommended | Change |
+|---|---|---|---|
+| Loss remaining | \$41,639 | \$36,767 (range \$36,639–36,890) | −12% |
+| Value recovered | \$1,196 | \$6,640 | 5.6x |
+| Recovered per colleague hour | \$11 | \$59 | 5.6x |
+| Honest shoppers stopped | 5,428 | 1,683 | −69% |
+
+**Measuring loss once rescans are targeted.** Rescanned sessions are no longer a random sample. Over 30 runs:
+
+![Loss measurement](reports/figures/18_loss_measurement.png)
+
+| Estimate of total loss | Bias | Typical error per period |
+|---|---|---|
+| Naive: average found per rescan x sessions | +266% | 16% |
+| **Inverse-probability weighted** (each rescan counts for 1/p sessions) | −0.7% | 9% |
+| Random floor only (2% audit sample) | −1.3% | 15% |
+
+So every rescan's probability is logged with its outcome (the API returns it with each decision), loss is reported with weighting, and the random floor stays as the cross-check.
+
+**Stress tests.** Ten scenarios, each changing one assumption and rerunning the whole chain (simulate, retrain the risk model, refit the policy, compare at today's colleague time):
+
+![Sensitivity](reports/figures/19_sensitivity.png)
+
+| Finding | Implication |
+|---|---|
+| The policy beats today in every scenario: loss 6–13% lower, recovery 3.9–6.4x, honest stops down 69–70% | The conclusion does not hinge on one assumption |
+| It helps least with little theft (6%) or cautious thieves (8%): today's flat 12% rescan rate deters cautious thieves, and targeting gives some of that up | The trade-off a store should know; the random floor is the lever if deterrence matters more |
+| Randomising beats a plain threshold by at most 1.4%; a static evaluation overstates recovery by 20–52% in every scenario | Detection, not deterrence, drives the result; always evaluate against shoppers who respond |
+
+Full analysis: [`notebooks/07_headline_and_stress_tests.ipynb`](notebooks/07_headline_and_stress_tests.ipynb). Stress tests: `python -m smartshop.experiments.sensitivity` (about 9 minutes).
+
 ## Ground rules
 
 - **No demographics or protected characteristics** in any model; they are used only for the fairness check. Channel, time of day and tenure are not scored either (they caused unfair flags in week 5), and proxies are checked.
@@ -239,7 +283,7 @@ Full analysis: [`notebooks/06_trust_and_targeting.ipynb`](notebooks/06_trust_and
 | 5 ✅ | Session risk model against three baselines: random, simple rules, top-k |
 | 6 ✅ | Game-theory rescan policy |
 | 7 ✅ | Targeted rescans and Nectar trust score |
-| 8 | True loss from biased rescans (IPW) and the headline comparison |
+| 8 ✅ | True loss from biased rescans (IPW) and the headline comparison |
 | 9 | FastAPI rescan-decision API in Docker; gated weekly pipeline |
 | 10 | Streamlit dashboard, fairness check, model card with a data-protection section, business case |
 
@@ -258,6 +302,7 @@ make simulate               # SmartShop sessions, scan events and today's rescan
 make basket                 # train the masked-basket model (~1.5 min)
 make risk                   # session risk model (first run scores the basket gap, ~5 min)
 make policy                 # solve the rescan game, compare policies (~1 min)
+make stress                 # stress tests: ten scenarios, each retrained and refitted (~9 min)
 make eda                    # run the EDA notebook and export HTML
 make test                   # unit, leakage and data-quality tests
 make dbt-docs               # browse model documentation and lineage
@@ -277,10 +322,11 @@ On Windows without `make`: `python -m smartshop.ingest.load_raw`, then `cd dbt; 
 │   ├── basket/              # observed history, masked-basket features, LightGBM model, fair evaluation
 │   ├── risk/                # observable risk features, honest selection, evaluation, fairness
 │   ├── policy/              # the rescan game, policy search, trust over cycles, targeted checks
+│   ├── experiments/         # loss measurement (inverse-probability weighting), stress tests
 │   ├── warehouse.py         # connect to DuckDB, run dbt from Python
 │   └── viz.py               # chart style shared with Nectar
 ├── dbt/                     # seeds, staging, marts, 47 data tests
-├── notebooks/               # 01 EDA · 02 simulator validation · 03 basket model · 04 risk model · 05 rescan policy · 06 trust and targeting
+├── notebooks/               # 01 EDA · 02 simulator validation · 03 basket model · 04 risk model · 05 rescan policy · 06 trust and targeting · 07 headline and stress tests
 ├── models/                  # basket and risk metrics (+ model files, generated by make basket / make risk)
 ├── reports/                 # HTML export + figures
 ├── tests/                   # marts on synthetic data, point-in-time leakage, data-quality contract
