@@ -25,3 +25,6 @@ dbt/target/
 dbt/logs/
 dbt/dbt_packages/
 dbt/.user.yml
+
+# models (pickles are rebuilt by make basket; metrics are committed)
+models/*.joblib

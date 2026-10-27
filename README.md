@@ -8,14 +8,14 @@ SmartShop (scan-as-you-shop) loses money when items leave unscanned: some on pur
 
 It is the companion to the [Nectar Offer Engine](https://github.com/TilakHeble/nectar-offer-engine): the same members, the same data and shared code. Nectar decides each member's personalised prices; SmartShop is where the member sees them, Nectar price next to normal price, while scanning.
 
-> Status: **weeks 1–3 of 10 complete** (ingestion, EDA, dbt warehouse, calibrated simulator). 47 dbt data tests and 28 Python tests, including a point-in-time leakage test, run in CI on every push.
+> Status: **weeks 1–4 of 10 complete** (ingestion, EDA, dbt warehouse, calibrated simulator, basket model). 47 dbt data tests and 33 Python tests, including a point-in-time leakage test, run in CI on every push.
 
 ## What makes it different
 
 | Idea | What it does |
 |---|---|
 | ⭐ **Game-theory rescan policy** | Risk sets each session's rescan *probability*, chosen (as a Stackelberg security game, the method used to schedule airport checkpoints) so that a shopper who adapts to the policy has no safe way to skip items |
-| ⭐ **Targeted rescans: "check these 3 items"** | A basket model ranks which items are most likely missing, so a partial rescan recovers close to a full one in a fraction of the time |
+| ⭐ **Targeted rescans: "check these items"** | A basket model, trained without any theft label, tells a colleague which product types to count, so honest mistakes are found with fewer units counted |
 | ⭐ **Nectar-linked trust** | A credit-score-style trust score, built from clean rescans and kept per member across stores, lowers rescans for the honest majority. It decays and never drops below the random floor |
 | **True loss from biased rescans** | Known rescan probabilities give an unbiased (inverse-probability-weighted) estimate of total loss, including sessions never checked |
 
@@ -120,6 +120,23 @@ Every SmartShop session is Nectar-linked: [Sainsbury's requires a Nectar card](h
 
 Full validation: [`notebooks/02_simulator.ipynb`](notebooks/02_simulator.ipynb). Results are claims that *the method recovers the known truth*, not that it would cut Sainsbury's loss by a given amount; week 8 reruns the comparison under lower and higher loss settings.
 
+## Week 4: the basket model
+
+**What is probably in the trolley but not on the scan list?** Half of missing value is a product type never scanned, half is a short count of a type that was (2 of 3 yogurts), so the model scores *every* product type in a session.
+
+- **Masked-basket training.** Staffed-till baskets are complete: hide 10% of their units at random and train LightGBM to say where they were, from the visible rest and the member's Nectar history (earlier trips only; for SmartShop trips, only what was scanned). No theft label is ever used. Held-out AUC 0.93, calibrated (mean prediction 0.26% vs 0.25% actual).
+- **A fair test.** Every method gets the same budget of units a colleague may count per session, and the simulator's detection rules: mistakes are found when their type is counted; items skipped on purpose are usually concealed outside the bags, so *any* partial check rarely finds them.
+
+![Basket model check lists](reports/figures/10_basket_model_recall.png)
+
+| Finding | Implication |
+|---|---|
+| The model's check list finds as many honest mistakes as today's random units while counting ~25–30% fewer units (1.3–1.4x found per unit) | Faster, friendlier partial rescans for honest shoppers |
+| "Check the most valuable scanned items" finds about a third as much per unit as random | Intuition is not enough; every rule is measured against random |
+| No partial check, random or targeted, finds much deliberate loss; "this basket looks incomplete" is a weak risk signal on its own (AUC 0.57) | **Theft is caught by choosing *who* gets a full rescan** (weeks 5–6), not by item lists |
+
+The gain is deliberately reported as modest: genuine mistakes fall roughly at random across units, so random picks already sample where they are. If real mistakes cluster on particular products (bulky items, loose produce, multi-buys), targeted lists gain more, and the random floor of full rescans is what would reveal it. Full analysis: [`notebooks/03_basket_model.ipynb`](notebooks/03_basket_model.ipynb).
+
 ## Ground rules
 
 - **No demographics or protected characteristics** in any model; they are used only for the fairness check. Proxies such as store location are checked too.
@@ -137,7 +154,7 @@ Full validation: [`notebooks/02_simulator.ipynb`](notebooks/02_simulator.ipynb).
 | 1 ✅ | Repo, ingestion (shared with Nectar), SmartShop EDA |
 | 2 ✅ | dbt warehouse: session, scan-line (normal and Nectar price) and point-in-time shopper-history models, with tests |
 | 3 ✅ | Session simulator: honest, careless, opportunist, deliberate and adaptive shoppers, calibrated to published ECR figures |
-| 4 | Basket model: which items are probably in the basket but unscanned |
+| 4 ✅ | Basket model: which items are probably in the basket but unscanned |
 | 5 | Session risk model against three baselines: random, simple rules, top-k |
 | 6 | Game-theory rescan policy |
 | 7 | Targeted rescans and Nectar trust score |
@@ -157,13 +174,14 @@ pip install -e ".[dev]"     # also installs the Nectar engine, pinned to an exac
 make ingest                 # CSV -> typed Parquet + DuckDB warehouse (~3 s)
 make dbt                    # build and test the staging and mart models (~15 s)
 make simulate               # SmartShop sessions, scan events and today's rescans (~10 s)
+make basket                 # train the masked-basket model (~1.5 min)
 make eda                    # run the EDA notebook and export HTML
 make test                   # unit, leakage and data-quality tests
 make dbt-docs               # browse model documentation and lineage
 make sample                 # no data? build a synthetic warehouse with the same schema
 ```
 
-On Windows without `make`: `python -m smartshop.ingest.load_raw`, then `cd dbt; dbt build --profiles-dir .; cd ..`, then `python -m smartshop.simulate.simulator`, then `pytest -q`. Use Python 3.12, as for Nectar.
+On Windows without `make`: `python -m smartshop.ingest.load_raw`, then `cd dbt; dbt build --profiles-dir .; cd ..`, then `python -m smartshop.simulate.simulator`, then `python -m smartshop.basket.model`, then `pytest -q`. Use Python 3.12, as for Nectar.
 
 ## Repository layout
 
@@ -173,10 +191,12 @@ On Windows without `make`: `python -m smartshop.ingest.load_raw`, then `cd dbt; 
 │   ├── ingest/load_raw.py   # reuses Nectar's typed table specs -> Parquet + DuckDB
 │   ├── ingest/sample.py     # synthetic warehouse with the real schema (CI, demos)
 │   ├── simulate/            # SimConfig (sources), simulator, rescan model, calibration
+│   ├── basket/              # observed history, masked-basket features, LightGBM model, fair evaluation
 │   ├── warehouse.py         # connect to DuckDB, run dbt from Python
 │   └── viz.py               # chart style shared with Nectar
 ├── dbt/                     # seeds, staging, marts, 47 data tests
-├── notebooks/               # 01 EDA · 02 simulator validation
+├── notebooks/               # 01 EDA · 02 simulator validation · 03 basket model
+├── models/                  # basket_metrics.json (+ basket_model.joblib, generated by make basket)
 ├── reports/                 # HTML export + figures
 ├── tests/                   # marts on synthetic data, point-in-time leakage, data-quality contract
 └── .github/workflows/ci.yml # ruff + dbt parse + pytest (full dbt build on synthetic data)
@@ -184,4 +204,4 @@ On Windows without `make`: `python -m smartshop.ingest.load_raw`, then `cd dbt; 
 
 ## Tech stack
 
-Python · SQL · DuckDB · Parquet · dbt · pytest · GitHub Actions. To come: LightGBM · PuLP · MLflow · FastAPI · Docker · Prefect · Streamlit.
+Python · SQL · DuckDB · Parquet · dbt · LightGBM · scikit-learn · pytest · GitHub Actions. To come: PuLP · MLflow · FastAPI · Docker · Prefect · Streamlit.
