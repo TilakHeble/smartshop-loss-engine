@@ -14,6 +14,7 @@ import argparse
 import json
 import logging
 import time
+from dataclasses import asdict
 
 import joblib
 import pandas as pd
@@ -30,6 +31,7 @@ from smartshop.policy.game import (
     threshold_policy,
     today_hours,
 )
+from smartshop.policy.trust import RECOMMENDED_TRUST
 from smartshop.risk.model import MODEL_PATH as RISK_PATH
 from smartshop.risk.model import load_features
 from smartshop.warehouse import connect
@@ -128,9 +130,19 @@ def main() -> None:
     table = compare(g_test, fitted, hours=today_hours(g_test))
     log.info("\n%s", table.round(2).to_string())
     rec = fitted["Randomised, cap 0.5 (recommended)"]
+    trust = {
+        **asdict(RECOMMENDED_TRUST),
+        "note": "Each clean full rescan lowers a member's rescan chance by 25%, up to 75% off; "
+        "a find bigger than one item under $10 resets it; the 2% random floor always applies.",
+    }
     POLICY_PATH.write_text(
         json.dumps(
-            {"recommended": rec, "all": fitted, "test_period": table.round(4).to_dict()},
+            {
+                "recommended": rec,
+                "trust_rule": trust,
+                "all": fitted,
+                "test_period": table.round(4).to_dict(),
+            },
             indent=2,
             default=float,
         )

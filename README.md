@@ -8,15 +8,15 @@ SmartShop (scan-as-you-shop) loses money when items leave unscanned: some on pur
 
 It is the companion to the [Nectar Offer Engine](https://github.com/TilakHeble/nectar-offer-engine): the same members, the same data and shared code. Nectar decides each member's personalised prices; SmartShop is where the member sees them, Nectar price next to normal price, while scanning.
 
-> Status: **weeks 1–6 of 10 complete** (ingestion, EDA, dbt warehouse, calibrated simulator, basket model, risk model, rescan policy). 47 dbt data tests and 50 Python tests, including point-in-time leakage tests, run in CI on every push.
+> Status: **weeks 1–7 of 10 complete** (ingestion, EDA, dbt warehouse, calibrated simulator, basket model, risk model, rescan policy, trust and targeted checks). 47 dbt data tests and 52 Python tests, including point-in-time leakage tests, run in CI on every push.
 
 ## What makes it different
 
 | Idea | What it does |
 |---|---|
 | ⭐ **Game-theory rescan policy** | The store commits to rescan *probabilities*; shoppers learn them and choose whether, and how much, to steal (a Stackelberg game). Every policy is judged against their best responses, within today's colleague time, with a random floor and a per-member cap |
-| ⭐ **Targeted rescans: "check these items"** | A basket model, trained without any theft label, tells a colleague which product types to count, so honest mistakes are found with fewer units counted |
-| ⭐ **Nectar-linked trust** | A credit-score-style trust score, built from clean rescans and kept per member across stores, lowers rescans for the honest majority. It decays and never drops below the random floor |
+| **Targeted checks: "check these items"** | A basket model, trained without any theft label, ranks which product types are probably in the bags but unscanned. Tested honestly: it finds honest mistakes with ~25% fewer units counted, but full rescans recover more per colleague-minute, so it serves as a risk feature and a "look here first" hint, not a separate check |
+| **Nectar-linked trust** | Clean full rescans earn a member fewer rescans (up to 75% off, per member across stores); a small honest slip does not reset it; the random floor always applies. A modest fairness refinement that thieves cannot easily earn |
 | **True loss from biased rescans** | Known rescan probabilities give an unbiased (inverse-probability-weighted) estimate of total loss, including sessions never checked |
 
 **Target headline:** with the same colleague time, recover more loss than random rescans *and* stop fewer honest shoppers, while holding up against shoppers who adapt.
@@ -192,6 +192,32 @@ The policy decides **who gets a full rescan, with what probability**, using exac
 
 Full analysis: [`notebooks/05_rescan_policy.ipynb`](notebooks/05_rescan_policy.ipynb). The game is one session at a time (member history held at today's); week 8 stress-tests the shoppers' assumed penalty and sensitivity.
 
+## Week 7: trust for honest regulars, and targeted checks
+
+Two ideas tested on the rescan game, with colleague time held at today's level.
+
+**Nectar-linked trust**, played over four rescan cycles: each cycle's rescans (drawn at the policy's probabilities) update trust for the next, and shoppers respond to the probabilities they face.
+
+![Trust and repeat stops](reports/figures/15_trust_repeat_stops.png)
+
+| Finding | Implication |
+|---|---|
+| With colleague time fixed, trust leaves total loss and honest stops about unchanged, but 12% fewer honest regulars are stopped 3+ times and recovery edges up | Added to the recommended policy as a fairness refinement, not a loss lever |
+| "Any find resets trust" hurts honest families: big baskets often contain a slip. Letting one small slip (one item under \$10) pass fixes that | The rule: each clean full rescan takes 25% off, up to 75%; bigger finds reset it |
+| Thieves are 14% of members but get about 10% of the trust discount | Trust built on full rescans is hard to game |
+| Counting clean *partial* checks spreads trust to far more members, thieves included, and is worse on loss and honest stops | Never build trust on checks that cannot see concealed items |
+
+**Targeted checks** (week 4's lists) against full rescans, per colleague-minute, at three risk bands under the recommended policy:
+
+![Targeted vs full](reports/figures/16_targeted_vs_full.png)
+
+| Finding | Implication |
+|---|---|
+| Full rescans recover several times more per colleague-minute than a 3-unit targeted check at every band (\$1.20 vs \$0.32 on flagged sessions) | Targeted checks do not earn colleague time; the basket model's value is as a risk feature and a "look here first" hint inside a full rescan |
+| An in-app "did you forget...?" prompt about the model's top guess would be right only 10–24% of the time and point at at most 5–9% of the value missed by mistake | Not worth interrupting shoppers |
+
+Full analysis: [`notebooks/06_trust_and_targeting.ipynb`](notebooks/06_trust_and_targeting.ipynb). The recommended policy (week 6 randomised policy plus this trust rule) is stored in `models/policy.json`.
+
 ## Ground rules
 
 - **No demographics or protected characteristics** in any model; they are used only for the fairness check. Channel, time of day and tenure are not scored either (they caused unfair flags in week 5), and proxies are checked.
@@ -212,7 +238,7 @@ Full analysis: [`notebooks/05_rescan_policy.ipynb`](notebooks/05_rescan_policy.i
 | 4 ✅ | Basket model: which items are probably in the basket but unscanned |
 | 5 ✅ | Session risk model against three baselines: random, simple rules, top-k |
 | 6 ✅ | Game-theory rescan policy |
-| 7 | Targeted rescans and Nectar trust score |
+| 7 ✅ | Targeted rescans and Nectar trust score |
 | 8 | True loss from biased rescans (IPW) and the headline comparison |
 | 9 | FastAPI rescan-decision API in Docker; gated weekly pipeline |
 | 10 | Streamlit dashboard, fairness check, model card with a data-protection section, business case |
@@ -250,11 +276,11 @@ On Windows without `make`: `python -m smartshop.ingest.load_raw`, then `cd dbt; 
 │   ├── simulate/            # SimConfig (sources), simulator, rescan model, calibration
 │   ├── basket/              # observed history, masked-basket features, LightGBM model, fair evaluation
 │   ├── risk/                # observable risk features, honest selection, evaluation, fairness
-│   ├── policy/              # the rescan game: counterfactual worlds, best responses, policy search
+│   ├── policy/              # the rescan game, policy search, trust over cycles, targeted checks
 │   ├── warehouse.py         # connect to DuckDB, run dbt from Python
 │   └── viz.py               # chart style shared with Nectar
 ├── dbt/                     # seeds, staging, marts, 47 data tests
-├── notebooks/               # 01 EDA · 02 simulator validation · 03 basket model · 04 risk model · 05 rescan policy
+├── notebooks/               # 01 EDA · 02 simulator validation · 03 basket model · 04 risk model · 05 rescan policy · 06 trust and targeting
 ├── models/                  # basket and risk metrics (+ model files, generated by make basket / make risk)
 ├── reports/                 # HTML export + figures
 ├── tests/                   # marts on synthetic data, point-in-time leakage, data-quality contract

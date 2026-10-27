@@ -41,7 +41,15 @@ from smartshop.simulate.simulator import (
 
 STRATEGIC = ("opportunist", "adaptive")
 LEVELS = (0.25, 0.5, 1.0)  # share of the usual haul an adaptive shopper can choose to take
-VALUES = ["net_loss", "deliberate_value", "full_find", "partial_find", "true_units", "score"]
+VALUES = [
+    "net_loss",
+    "deliberate_value",
+    "full_find",
+    "partial_find",
+    "true_units",
+    "nonscan_units",
+    "score",
+]
 
 
 @dataclass
@@ -57,6 +65,12 @@ class GameData:
 
     def __len__(self):
         return len(self.sessions)
+
+    def subset(self, mask) -> GameData:
+        """The same game restricted to some sessions (e.g. one rescan cycle)."""
+        return GameData(
+            self.sessions[np.asarray(mask)].reset_index(drop=True), self.cfg, self.levels
+        )
 
     def matrix(self, value: str) -> np.ndarray:
         """(versions x sessions) array of one value."""
@@ -87,6 +101,7 @@ def _world_values(s, u, cfg) -> pd.DataFrame:
             ).to_numpy(),
             "partial_find": t.basket_id.map(part).fillna(0.0).to_numpy(),
             "true_units": t.gt_true_units.to_numpy(),
+            "nonscan_units": t.gt_nonscan_units.to_numpy(),
         },
         index=t.basket_id.to_numpy(),
     )

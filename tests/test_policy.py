@@ -116,3 +116,63 @@ def test_fit_to_budget_uses_no_more_than_the_budget(game):
     hours = today_hours(g)
     pol, _ = fit_to_budget(g, lambda t: smooth_policy(t, 0.02, 0.5, 0.25), hours, -12, 12, iters=25)
     assert outcome(g, pol)["colleague_hours"] <= hours * 1.001
+
+
+# --- trust ---------------------------------------------------------------------------------
+
+
+def _events(rows):
+    import pandas as pd
+
+    return pd.DataFrame(rows, columns=["member_id", "day", "kind", "found_units", "found_value"])
+
+
+def test_trust_rule():
+    from smartshop.policy.trust import TrustRule, multipliers
+
+    rule = TrustRule(step=0.25, max_discount=0.75)
+    ev = _events(
+        [
+            (1, 10, "full", 0, 0.0),  # member 1: two clean full rescans -> 50% off
+            (1, 20, "full", 0, 0.0),
+            (2, 10, "full", 0, 0.0),  # member 2: clean, then a real find -> reset
+            (2, 30, "full", 3, 25.0),
+            (3, 10, "full", 0, 0.0),  # member 3: a small slip does not reset
+            (3, 30, "full", 1, 4.0),
+            (4, 10, "partial", 0, 0.0),  # member 4: partial checks do not count by default
+            (5, 10, "full", 0, 0.0),  # member 5: six clean rescans, capped at 75% off
+            (5, 11, "full", 0, 0.0),
+            (5, 12, "full", 0, 0.0),
+            (5, 13, "full", 0, 0.0),
+            (5, 14, "full", 0, 0.0),
+            (5, 15, "full", 0, 0.0),
+        ]
+    )
+    m = multipliers(ev, np.array([1, 2, 3, 4, 5, 6]), day=100, rule=rule)
+    assert m[1] == pytest.approx(0.5)
+    assert m[2] == pytest.approx(1.0)
+    assert m[3] == pytest.approx(0.5)  # one clean rescan + one slip (counted as clean)
+    assert m[4] == pytest.approx(1.0)
+    assert m[5] == pytest.approx(0.25)
+    assert m[6] == pytest.approx(1.0)  # no history, no trust
+    partial = multipliers(ev, np.array([4]), day=100, rule=TrustRule(count_partial=True))
+    assert partial[4] == pytest.approx(0.75)
+    old = multipliers(ev, np.array([1]), day=10 + 400, rule=rule)  # outside the 365-day window
+    assert old[1] == pytest.approx(1.0)
+
+
+def test_trust_cycles(game):
+    from smartshop.policy.trust import RECOMMENDED_TRUST, TrustRule, run_cycles
+
+    _, g = game
+    params = {"floor": 0.02, "cap": 0.5, "tau": 0.25}
+    ev = _events([])
+    for rule in (TrustRule(enabled=False), RECOMMENDED_TRUST):
+        cyc, real = run_cycles(g, ev, params, rule, n_cycles=3, seed=0)
+        assert len(cyc) == 3 and real.cycle.nunique() == 3
+        assert real.p.between(0.02 - 1e-9, 1).all()
+        assert (real.trust_mult >= 1 - rule.max_discount - 1e-9).all()
+        assert not (real.found & ~real.rescanned).any()
+    # without trust every multiplier is 1
+    _, real0 = run_cycles(g, ev, params, TrustRule(enabled=False), n_cycles=3, seed=0)
+    assert (real0.trust_mult == 1).all()

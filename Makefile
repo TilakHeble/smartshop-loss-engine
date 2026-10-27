@@ -36,6 +36,7 @@ eda:
 	jupyter nbconvert --to notebook --execute --inplace notebooks/03_basket_model.ipynb
 	jupyter nbconvert --to notebook --execute --inplace notebooks/04_risk_model.ipynb
 	jupyter nbconvert --to notebook --execute --inplace notebooks/05_rescan_policy.ipynb
+	jupyter nbconvert --to notebook --execute --inplace notebooks/06_trust_and_targeting.ipynb
 	jupyter nbconvert --to html notebooks/0*.ipynb --output-dir reports
 
 test:
