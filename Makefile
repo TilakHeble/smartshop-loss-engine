@@ -1,9 +1,9 @@
-.PHONY: install ingest dbt dbt-docs sample simulate basket risk policy stress eda test lint clean
+.PHONY: install ingest dbt dbt-docs sample simulate basket risk policy stress bundle weekly demo-bundle serve docker smoke eda test lint clean
 
 RAW_DIR ?= data/raw
 
 install:
-	pip install -e ".[dev]"
+	pip install -e ".[dev,serve]"
 
 ingest:
 	python -m smartshop.ingest.load_raw --raw-dir $(RAW_DIR)
@@ -29,6 +29,25 @@ policy:
 stress:
 	python -m smartshop.experiments.sensitivity
 
+bundle:  # serving bundle from the warehouse (no release gates)
+	python -m smartshop.serving.bundle
+
+weekly:  # the weekly job: rebuild, drift and release gates, publish only if all pass
+	python -m smartshop.pipeline.weekly
+
+demo-bundle:  # synthetic bundle: try the API without the data
+	python -m smartshop.serving.demo_bundle --out artifacts
+
+serve:
+	uvicorn smartshop.serving.app:app --reload --port 8000
+
+docker:
+	docker build -t smartshop-api .
+	docker run --rm -d --name smartshop-api -p 8000:8000 -v "$(PWD)/artifacts:/app/artifacts:ro" smartshop-api
+
+smoke:
+	python -m smartshop.serving.smoke --url http://localhost:8000
+
 sample:  # synthetic warehouse with the real schema, for trying the pipeline without the data
 	python -m smartshop.ingest.sample data/warehouse/sample.duckdb
 	cd dbt && SMARTSHOP_WAREHOUSE=../data/warehouse/sample.duckdb dbt build --profiles-dir .
@@ -51,4 +70,4 @@ lint:
 	ruff format --check src tests
 
 clean:
-	rm -rf data/processed/*.parquet data/warehouse/*.duckdb
+	rm -rf data/processed/*.parquet data/warehouse/*.duckdb artifacts artifacts_archive runs

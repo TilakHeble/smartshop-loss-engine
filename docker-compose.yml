@@ -1,0 +1,7 @@
+# Local run: build the bundle first (make bundle, or make demo-bundle without the data).
+services:
+  api:
+    build: .
+    ports: ["8000:8000"]
+    volumes:
+      - ./artifacts:/app/artifacts:ro

@@ -28,3 +28,9 @@ dbt/.user.yml
 
 # models (pickles are rebuilt by make basket; metrics are committed)
 models/*.joblib
+
+# serving bundle and weekly run records (rebuilt from the data)
+artifacts/
+artifacts.tmp/
+artifacts_archive/
+runs/

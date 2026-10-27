@@ -12,9 +12,13 @@ are built for fairness reporting only (NOT_FOR_SCORING).
 
 from __future__ import annotations
 
-import duckdb
+from typing import TYPE_CHECKING
+
 import numpy as np
 import pandas as pd
+
+if TYPE_CHECKING:  # the serving image does not install DuckDB
+    import duckdb
 
 SESSION_FEATURES = [
     "scanned_units",

@@ -1,0 +1,17 @@
+.git
+.github
+.venv
+data
+artifacts
+artifacts_archive
+runs
+models
+notebooks
+reports
+docs
+dbt
+tests
+**/__pycache__
+**/*.egg-info
+.pytest_cache
+.ruff_cache

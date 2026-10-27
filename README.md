@@ -262,6 +262,68 @@ So every rescan's probability is logged with its outcome (the API returns it wit
 
 Full analysis: [`notebooks/07_headline_and_stress_tests.ipynb`](notebooks/07_headline_and_stress_tests.ipynb). Stress tests: `python -m smartshop.experiments.sensitivity` (about 9 minutes).
 
+## Week 9: the rescan decision API and the weekly job
+
+When a SmartShop shopper goes to pay, the till or app sends the session's scan log to `POST /decide` and gets back a decision a colleague can act on:
+
+A real response from the current bundle, for a simulated session in the last week of the data (the draw fixed at 0.2 for the example):
+
+```json
+{
+  "decision": "full_rescan",
+  "rescan_probability": 0.375,
+  "draw": 0.2,
+  "audit_sample": false,
+  "risk_score": 0.9598,
+  "reasons": ["long pause between scans", "many items", "large basket value"],
+  "look_here_first": ["BEEF", "LUNCHMEAT", "CHICKEN"],
+  "trust_multiplier": 0.75,
+  "known_member": true,
+  "unknown_products": 0,
+  "bundle_version": "20261027T133508Z-700821e"
+}
+```
+
+This member has earned a trust discount (0.75), so even a very high score is capped at 0.375 rather than 0.5.
+
+- **Reasons in plain English** from the logistic model's largest contributions, and **look here first**: the member's usual high-risk product types that are missing from this shop (the useful part of the week 4 basket model, kept as a hint inside a full rescan).
+- **The probability and the random draw are returned and logged** with every decision (optional JSONL log), because week 8 showed loss can only be measured afterwards by weighting each rescan by 1/p. `audit_sample` marks the 2% random floor.
+- **Unknown members are never refused**: they get the standard treatment, as week 5's fairness check required. Trust can lower a regular's probability but never below the floor.
+- Other endpoints: `/health`, `/ready` (Docker health check), `/model` (version, policy, trust rule, budget), `/members/{id}/trust`.
+
+**The weekly job** (`make weekly`) retrains on every random full rescan so far, refreshes member profiles and trust, and recalibrates the policy so expected colleague time matches today's. It then publishes only if every release gate passes:
+
+| Gate | Rule | Latest run |
+|---|---|---|
+| Enough labels | ≥ 300 random full rescans | 1,934 ✅ |
+| Budget | expected colleague time within 2% of today's | 0.0% ✅ |
+| Floor and cap | every probability between 2% and 50% | ✅ |
+| Drift | no feature at PSI ≥ 0.25 against the live bundle's last cycle | max 0.02 ✅ |
+| Channel parity | neither app nor handset shoppers rescanned more than 1.25x the rest | 1.03 ✅ |
+| New-user parity | new SmartShop users not rescanned more than 1.25x established ones | too few to test (12 sessions), reported ✅ |
+| Score sanity | new model ranks the latest cycle like the live one (Spearman ≥ 0.7) | 0.997 ✅ |
+
+Every run, published or not, is recorded in `runs/`, and the replaced bundle is archived. Publishing is an atomic directory swap; the API notices the new manifest and hot-reloads with no restart.
+
+| Serving fact | Value |
+|---|---|
+| Members profiled / with a trust discount | 2,492 / 913 |
+| Expected full-rescan rate at today's colleague time | 4.0% (today: 10% partial + 2% full) |
+| Latency, 300 decisions, 2 workers | p50 25 ms, p95 35 ms |
+| Image | `python:3.13-slim`, non-root, health check, bundle mounted read-only (no DuckDB, LightGBM or dbt inside) |
+
+Two things the gates caught while building it, both fixed at the cause rather than by loosening a threshold:
+
+- The first drift reference was the whole training history. Member-history features mature over time, so every new week looked drifted (PSI 0.31). The reference is now the cycle the live bundle was calibrated on.
+- A two-sided parity gate blocked a bundle because 12 brand-new users were rescanned *less* than others. The gate is now one-sided (being rescanned more is the harm) and needs at least 100 sessions per group.
+
+Pandas features at the API are tested to equal the warehouse SQL used in training on every simulated session, so the model sees the same numbers in production as in training. The served model drops the basket-gap feature, which would need the whole basket model at the till; the week 8 stress tests used this configuration and reached the same conclusion (11.4% less loss vs 11.7%).
+
+```bash
+make weekly                 # or make bundle (no gates); make demo-bundle without the data
+make docker && make smoke   # build, start on ./artifacts, smoke-test
+```
+
 ## Ground rules
 
 - **No demographics or protected characteristics** in any model; they are used only for the fairness check. Channel, time of day and tenure are not scored either (they caused unfair flags in week 5), and proxies are checked.
@@ -284,7 +346,7 @@ Full analysis: [`notebooks/07_headline_and_stress_tests.ipynb`](notebooks/07_hea
 | 6 ✅ | Game-theory rescan policy |
 | 7 ✅ | Targeted rescans and Nectar trust score |
 | 8 ✅ | True loss from biased rescans (IPW) and the headline comparison |
-| 9 | FastAPI rescan-decision API in Docker; gated weekly pipeline |
+| 9 ✅ | FastAPI rescan-decision API in Docker; gated weekly pipeline |
 | 10 | Streamlit dashboard, fairness check, model card with a data-protection section, business case |
 
 **v2: after v1**: deliberate vs accidental misses, deterrence value of a rescan, queue-aware capacity, a conformal cap on honest shoppers stopped, data-driven product hotspots, a nudge experiment sized with CUPED, in-app "you might have forgotten…" prompts, scan-time camera verification.
@@ -294,7 +356,7 @@ Full analysis: [`notebooks/07_headline_and_stress_tests.ipynb`](notebooks/07_hea
 Needs the 7 Complete Journey CSVs used here (the in-store promotions file is not needed).
 
 ```bash
-pip install -e ".[dev]"     # also installs the Nectar engine, pinned to an exact commit
+pip install -e ".[dev,serve]"  # also installs the Nectar engine, pinned to an exact commit
 # put the CSVs in data/raw/
 make ingest                 # CSV -> typed Parquet + DuckDB warehouse (~3 s)
 make dbt                    # build and test the staging and mart models (~15 s)
@@ -303,6 +365,8 @@ make basket                 # train the masked-basket model (~1.5 min)
 make risk                   # session risk model (first run scores the basket gap, ~5 min)
 make policy                 # solve the rescan game, compare policies (~1 min)
 make stress                 # stress tests: ten scenarios, each retrained and refitted (~9 min)
+make weekly                 # serving bundle with drift and release gates (~10 s)
+make serve                  # the rescan decision API on localhost:8000 (docs at /docs)
 make eda                    # run the EDA notebook and export HTML
 make test                   # unit, leakage and data-quality tests
 make dbt-docs               # browse model documentation and lineage
@@ -323,6 +387,9 @@ On Windows without `make`: `python -m smartshop.ingest.load_raw`, then `cd dbt; 
 │   ├── risk/                # observable risk features, honest selection, evaluation, fairness
 │   ├── policy/              # the rescan game, policy search, trust over cycles, targeted checks
 │   ├── experiments/         # loss measurement (inverse-probability weighting), stress tests
+│   ├── serving/             # bundle, exit-time features, FastAPI app, demo bundle, smoke test
+│   ├── monitoring/drift.py  # population stability index
+│   ├── pipeline/weekly.py   # the weekly job: rebuild, drift, release gates, atomic publish
 │   ├── warehouse.py         # connect to DuckDB, run dbt from Python
 │   └── viz.py               # chart style shared with Nectar
 ├── dbt/                     # seeds, staging, marts, 47 data tests
@@ -330,9 +397,10 @@ On Windows without `make`: `python -m smartshop.ingest.load_raw`, then `cd dbt; 
 ├── models/                  # basket and risk metrics (+ model files, generated by make basket / make risk)
 ├── reports/                 # HTML export + figures
 ├── tests/                   # marts on synthetic data, point-in-time leakage, data-quality contract
-└── .github/workflows/ci.yml # ruff + dbt parse + pytest (full dbt build on synthetic data)
+├── Dockerfile               # serving image (bundle mounted, not baked in)
+└── .github/workflows/ci.yml # ruff + dbt parse + pytest, then build the image and smoke-test the container
 ```
 
 ## Tech stack
 
-Python · SQL · DuckDB · Parquet · dbt · LightGBM · scikit-learn · pytest · GitHub Actions. To come: MLflow · FastAPI · Docker · Prefect · Streamlit.
+Python · SQL · DuckDB · Parquet · dbt · LightGBM · scikit-learn · FastAPI · Docker · pytest · GitHub Actions. To come: Streamlit.
