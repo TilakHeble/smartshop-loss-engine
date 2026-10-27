@@ -8,7 +8,9 @@ SmartShop (scan-as-you-shop) loses money when items leave unscanned: some on pur
 
 It is the companion to the [Nectar Offer Engine](https://github.com/TilakHeble/nectar-offer-engine): the same members, the same data and shared code. Nectar decides each member's personalised prices; SmartShop is where the member sees them, Nectar price next to normal price, while scanning.
 
-> Status: **weeks 1–8 of 10 complete** (data, warehouse, calibrated simulator, basket model, risk model, rescan game, trust, headline and stress tests). 47 dbt data tests and 55 Python tests, including point-in-time leakage tests, run in CI on every push.
+> Status: **v1 complete (weeks 1–10).** Calibrated simulator, risk model, rescan game, trust, unbiased loss measurement, a decision API in Docker with a gated weekly job, a Streamlit dashboard, a full fairness check, a [model card](docs/model_card.md) with a data-protection assessment, and a [business case](docs/business_case.md) with a store-trial design. 47 dbt data tests and 77 Python tests run in CI on every push, which also builds the API image and smoke-tests the running container.
+>
+> **Read first:** [business case](docs/business_case.md) (2 pages) · [model card](docs/model_card.md) · dashboard: `make dashboard` (deploy steps in [docs/deploy.md](docs/deploy.md))
 
 ## What makes it different
 
@@ -18,6 +20,7 @@ It is the companion to the [Nectar Offer Engine](https://github.com/TilakHeble/n
 | **Targeted checks: "check these items"** | A basket model, trained without any theft label, ranks which product types are probably in the bags but unscanned. Tested honestly: it finds honest mistakes with ~25% fewer units counted, but full rescans recover more per colleague-minute, so it serves as a risk feature and a "look here first" hint, not a separate check |
 | **Nectar-linked trust** | Clean full rescans earn a member fewer rescans (up to 75% off, per member across stores); a small honest slip does not reset it; the random floor always applies. A modest fairness refinement that thieves cannot easily earn |
 | **True loss from biased rescans** | Known rescan probabilities give an unbiased (inverse-probability-weighted) estimate of total loss, including sessions never checked |
+| **Production shape** | A 25 ms decision API with reasons and "look here first" items, a weekly job that publishes only through budget, drift and fairness gates, and a fairness check that separates real gaps from small-group chance |
 
 ## Headline result
 
@@ -324,6 +327,34 @@ make weekly                 # or make bundle (no gates); make demo-bundle withou
 make docker && make smoke   # build, start on ./artifacts, smoke-test
 ```
 
+## Week 10: fairness, dashboard, model card and business case
+
+**The full fairness check** runs on the policy as it would operate (shoppers respond, trust updates over four cycles). The harm is being asked for a rescan **when honest**.
+
+![Fairness by group](reports/figures/20_fairness_groups.png)
+
+| Attribute | Four-fifths ratio | At equal basket sizes | Random groups of the same sizes | Verdict |
+|---|---|---|---|---|
+| Channel, new SmartShop users, evening peak | 0.96–1.00 | 0.92–0.99 | 0.97 | pass |
+| Income level | 0.60 | 0.76 | 0.61 (p = 0.42) | within chance |
+| Household size | 0.64 | 0.81 | 0.84 | explained by basket size |
+| Age group | 0.61 | 0.76 | 0.80 (p = 0.01) | **review** |
+
+| Finding | Implication |
+|---|---|
+| Every group of honest shoppers is stopped at 31–45% of today's rate | No group is worse off than today in absolute terms |
+| A **permutation test** shows how far the four-fifths ratio falls by chance: random groups of 11 households give 0.61 | Reporting the raw ratio alone would have called income unfair; it is noise |
+| Younger family households are stopped about 1.6x as often as the oldest when honest, driven by basket-level features (bigger baskets) | Age is a protected characteristic: a recorded business and legal decision before rollout, monitored in the trial; mitigation options in the [model card](docs/model_card.md#fairness) |
+| A store-level randomised trial needs roughly 40–100 stores per arm (matched pairs, baseline adjustment), with loss measured from random full rescans in both arms (about 23% error per store) | Feasible in one region of a large chain; a shadow-mode pilot comes first ([business case](docs/business_case.md#how-to-prove-it-in-real-stores)) |
+
+![Trial sizing](reports/figures/21_trial_sizing.png)
+
+**Dashboard** (`make dashboard`): headline and weekly trends, where rescans go and what they find, the policy curve with a single-decision explorer, rescans by hour per store, fairness by group, loss measurement, an interactive trial-size calculator, stress tests, and the latest weekly job's gates and drift. It reads only an aggregate snapshot (no member, household or basket identifiers), so it can be deployed publicly; [docs/deploy.md](docs/deploy.md) has the steps.
+
+**Model card** ([docs/model_card.md](docs/model_card.md)) includes a data-protection assessment under UK GDPR as amended by the Data (Use and Access) Act 2025: DPIA, lawful basis (crime prevention is now a recognised legitimate interest; honest-mistake detection still needs a balancing test), automated-decision safeguards, minimisation, retention and rights.
+
+Full analysis: [`notebooks/08_fairness_and_trial.ipynb`](notebooks/08_fairness_and_trial.ipynb). Produced by `make report` (about 4 minutes).
+
 ## Ground rules
 
 - **No demographics or protected characteristics** in any model; they are used only for the fairness check. Channel, time of day and tenure are not scored either (they caused unfair flags in week 5), and proxies are checked.
@@ -347,7 +378,7 @@ make docker && make smoke   # build, start on ./artifacts, smoke-test
 | 7 ✅ | Targeted rescans and Nectar trust score |
 | 8 ✅ | True loss from biased rescans (IPW) and the headline comparison |
 | 9 ✅ | FastAPI rescan-decision API in Docker; gated weekly pipeline |
-| 10 | Streamlit dashboard, fairness check, model card with a data-protection section, business case |
+| 10 ✅ | Streamlit dashboard, fairness check, model card with a data-protection section, business case |
 
 **v2: after v1**: deliberate vs accidental misses, deterrence value of a rescan, queue-aware capacity, a conformal cap on honest shoppers stopped, data-driven product hotspots, a nudge experiment sized with CUPED, in-app "you might have forgotten…" prompts, scan-time camera verification.
 
@@ -356,7 +387,7 @@ make docker && make smoke   # build, start on ./artifacts, smoke-test
 Needs the 7 Complete Journey CSVs used here (the in-store promotions file is not needed).
 
 ```bash
-pip install -e ".[dev,serve]"  # also installs the Nectar engine, pinned to an exact commit
+pip install -e ".[dev,serve,dashboard]"  # also installs the Nectar engine, pinned to an exact commit
 # put the CSVs in data/raw/
 make ingest                 # CSV -> typed Parquet + DuckDB warehouse (~3 s)
 make dbt                    # build and test the staging and mart models (~15 s)
@@ -367,7 +398,9 @@ make policy                 # solve the rescan game, compare policies (~1 min)
 make stress                 # stress tests: ten scenarios, each retrained and refitted (~9 min)
 make weekly                 # serving bundle with drift and release gates (~10 s)
 make serve                  # the rescan decision API on localhost:8000 (docs at /docs)
-make eda                    # run the EDA notebook and export HTML
+make report                 # fairness check, trial sizing, dashboard snapshot (~4 min)
+make dashboard              # the Streamlit dashboard on localhost:8501
+make eda                    # run the notebooks and export HTML
 make test                   # unit, leakage and data-quality tests
 make dbt-docs               # browse model documentation and lineage
 make sample                 # no data? build a synthetic warehouse with the same schema
@@ -390,12 +423,15 @@ On Windows without `make`: `python -m smartshop.ingest.load_raw`, then `cd dbt; 
 │   ├── serving/             # bundle, exit-time features, FastAPI app, demo bundle, smoke test
 │   ├── monitoring/drift.py  # population stability index
 │   ├── pipeline/weekly.py   # the weekly job: rebuild, drift, release gates, atomic publish
+│   ├── reporting/           # full fairness check, trial sizing, dashboard snapshot
 │   ├── warehouse.py         # connect to DuckDB, run dbt from Python
 │   └── viz.py               # chart style shared with Nectar
 ├── dbt/                     # seeds, staging, marts, 47 data tests
-├── notebooks/               # 01 EDA · 02 simulator validation · 03 basket model · 04 risk model · 05 rescan policy · 06 trust and targeting · 07 headline and stress tests
+├── notebooks/               # 01 EDA · 02 simulator validation · 03 basket model · 04 risk model · 05 rescan policy · 06 trust and targeting · 07 headline and stress tests · 08 fairness and trial
 ├── models/                  # basket and risk metrics (+ model files, generated by make basket / make risk)
 ├── reports/                 # HTML export + figures
+├── dashboards/              # Streamlit app + aggregate snapshot (deployable without the data)
+├── docs/                    # model card, business case, deploy guide
 ├── tests/                   # marts on synthetic data, point-in-time leakage, data-quality contract
 ├── Dockerfile               # serving image (bundle mounted, not baked in)
 └── .github/workflows/ci.yml # ruff + dbt parse + pytest, then build the image and smoke-test the container
@@ -403,4 +439,4 @@ On Windows without `make`: `python -m smartshop.ingest.load_raw`, then `cd dbt; 
 
 ## Tech stack
 
-Python · SQL · DuckDB · Parquet · dbt · LightGBM · scikit-learn · FastAPI · Docker · pytest · GitHub Actions. To come: Streamlit.
+Python · SQL · DuckDB · Parquet · dbt · LightGBM · scikit-learn · FastAPI · Docker · Streamlit · Altair · pytest · GitHub Actions.

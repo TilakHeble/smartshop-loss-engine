@@ -13,9 +13,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -e ".[dev,serve]"
-      - run: ruff check src tests
-      - run: ruff format --check src tests
+      - run: pip install -e ".[dev,serve,dashboard]"
+      - run: ruff check src tests dashboards
+      - run: ruff format --check src tests dashboards
       - name: dbt parse (compiles every model and test)
         run: cd dbt && dbt parse --profiles-dir .
         env:

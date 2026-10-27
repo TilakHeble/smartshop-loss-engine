@@ -1,9 +1,9 @@
-.PHONY: install ingest dbt dbt-docs sample simulate basket risk policy stress bundle weekly demo-bundle serve docker smoke eda test lint clean
+.PHONY: report dashboard install ingest dbt dbt-docs sample simulate basket risk policy stress bundle weekly demo-bundle serve docker smoke eda test lint clean
 
 RAW_DIR ?= data/raw
 
 install:
-	pip install -e ".[dev,serve]"
+	pip install -e ".[dev,serve,dashboard]"
 
 ingest:
 	python -m smartshop.ingest.load_raw --raw-dir $(RAW_DIR)
@@ -48,6 +48,12 @@ docker:
 smoke:
 	python -m smartshop.serving.smoke --url http://localhost:8000
 
+report:  # fairness check, trial sizing and the dashboard snapshot (~4 min)
+	python -m smartshop.reporting.snapshot
+
+dashboard:
+	streamlit run dashboards/app.py
+
 sample:  # synthetic warehouse with the real schema, for trying the pipeline without the data
 	python -m smartshop.ingest.sample data/warehouse/sample.duckdb
 	cd dbt && SMARTSHOP_WAREHOUSE=../data/warehouse/sample.duckdb dbt build --profiles-dir .
@@ -60,14 +66,15 @@ eda:
 	jupyter nbconvert --to notebook --execute --inplace notebooks/05_rescan_policy.ipynb
 	jupyter nbconvert --to notebook --execute --inplace notebooks/06_trust_and_targeting.ipynb
 	jupyter nbconvert --to notebook --execute --inplace notebooks/07_headline_and_stress_tests.ipynb
+	jupyter nbconvert --to notebook --execute --inplace notebooks/08_fairness_and_trial.ipynb
 	jupyter nbconvert --to html notebooks/0*.ipynb --output-dir reports
 
 test:
 	pytest -q
 
 lint:
-	ruff check src tests
-	ruff format --check src tests
+	ruff check src tests dashboards
+	ruff format --check src tests dashboards
 
 clean:
 	rm -rf data/processed/*.parquet data/warehouse/*.duckdb artifacts artifacts_archive runs
