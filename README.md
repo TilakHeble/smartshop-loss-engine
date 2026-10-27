@@ -8,7 +8,7 @@ SmartShop (scan-as-you-shop) loses money when items leave unscanned: some on pur
 
 It is the companion to the [Nectar Offer Engine](https://github.com/TilakHeble/nectar-offer-engine): the same members, the same data and shared code. Nectar decides each member's personalised prices; SmartShop is where the member sees them, Nectar price next to normal price, while scanning.
 
-> Status: **weeks 1–2 of 10 complete** (ingestion, EDA, dbt warehouse). 47 dbt data tests and 21 Python tests, including a point-in-time leakage test, run in CI on every push.
+> Status: **weeks 1–3 of 10 complete** (ingestion, EDA, dbt warehouse, calibrated simulator). 47 dbt data tests and 28 Python tests, including a point-in-time leakage test, run in CI on every push.
 
 ## What makes it different
 
@@ -75,24 +75,56 @@ flowchart LR
 - **CI runs the real pipeline.** Raw data is never committed, so CI generates a small synthetic warehouse with the same schema (every high-risk product, fuel lines, returns, multi-store members) and runs the full dbt build, all 47 data tests and the leakage test on it.
 - The rebuilt marts reproduce the week 1 analysis exactly, figure for figure.
 
-## What is real and what is simulated
+## Week 3: a simulator calibrated to published research
 
-SmartShop data isn't public, and loss needs a known ground truth to evaluate against.
+SmartShop data isn't public, and the truth about loss (who skipped what, and why) is never fully known even inside a retailer. `smartshop.simulate` adds SmartShop behaviour on top of the **real** baskets and checks it against published figures.
 
-| Real (Complete Journey) | Simulated (from week 3) |
+| Real (Complete Journey) | Simulated (`simulate/config.py`) |
 |---|---|
-| Baskets, products, quantities | Scan order, timings, deletions |
-| Normal and Nectar prices | Which items are missed, and why (honest, careless, opportunist, deliberate, adaptive) |
-| Stores, time of day | Rescan outcomes |
-| Repeat visits per member | Non-Nectar shoppers (every panel household holds a card) |
+| Members, stores, days, checkout times | Who adopted SmartShop and when; app or handset |
+| Every basket's items, quantities, normal and Nectar prices | Hidden shopper type: honest, careless, opportunist, deliberate, adaptive |
+| Repeat visits per member | Genuine mistakes (missed and double scans) and deliberate non-scans |
+| | Timed scan-event log with deletions |
+| | Today's random partial and full rescans, and what they found |
 
-Simulated rates are calibrated to published UK retail-loss research and recorded in one config, with sensitivity checks. Results are claims that *the method recovers the known truth*, not that it would cut Sainsbury's loss by a given amount.
+Every SmartShop session is Nectar-linked: [Sainsbury's requires a Nectar card](https://help.sainsburys.co.uk/help/products/smartshop-faq) for both the app and the handset. The cold-start case is a **new SmartShop user**.
+
+**Calibrated to the ECR Retail Loss Group's studies** ([Beck 2018](https://ecrloss.com/research-paper/self-checkout-loss-measurement/): 13 retailers, 140m scan-and-go transactions, 17m audits; [Beck 2022](https://www.rgis.co.uk/wp-content/uploads/2023/04/ECR_Global_Study_on_Self-checkout_in_Retail.pdf): 93 retailers):
+
+| Check | Simulated | Published |
+|---|---|---|
+| Sessions with an error: 20 / 50 / 100 units | 31% / 65% / 91% | 30% / 60% / 90% |
+| Non-scans as share of item errors (rest are double scans) | 76% | 77% |
+| Deliberate share of non-scanned value | 56% | 46–56% |
+| Net loss, share of SmartShop sales | 2.0% | 0.96–4.68% |
+| Sessions rescanned today | 12% | ~12% |
+| Partial rescans that find an error | 3.2% | 2.88% |
+
+![Error curve calibration](reports/figures/07_error_curve_calibration.png)
+
+**Design choices that matter later**
+- **Truth and observations are separated.** Models only ever read `sim_obs` (sessions, scan events, rescan results). The hidden truth sits in `sim_truth`, and a test fails if any `gt_` column reaches `sim_obs`.
+- **Signals come from mechanisms, not labels.** Shopping time follows the *true* basket, so a session with unscanned items looks slow for what was scanned; some deliberate skips are scan-then-delete. Each signal alone is weak (AUC 0.58–0.67), as in a real store.
+- **Shoppers respond to the policy.** Opportunists are deterred as the rescan probability rises; adaptive shoppers steal only when the expected haul beats the expected cost of being caught. This is what the game-theory policy (week 6) has to beat.
+- **Common random numbers.** Every random draw is made once per unit and session, so any two policies are compared on identical shoppers and baskets.
+- Every session's scan log accounts exactly for its true basket: scanned = true − missed + double-scanned (tested).
+
+| Finding | Implication |
+|---|---|
+| 14% of members cause 76% of the loss; genuine mistakes by everyone else are the other 24% | Two problems: catch deliberate skips, and fix honest mistakes without treating people as suspects |
+| High-risk items are 19% of value but 47% of deliberately skipped value | Targeted rescans should look there first |
+| Random partial rescans put loss at 0.20% of sales, a tenth of the truth (2.04%); random full rescans estimate 1.99% (95% CI 1.46–2.53%) | Measure loss with a random floor of *full* rescans, never from partial checks (as [ECR] found in practice) |
+| Today's random rescans: 223 colleague hours recover \$10.69 an hour and 3.1% of loss; 96% of rescans stop someone who skipped nothing on purpose | **The baseline the policy must beat** |
+
+![What rescans measure](reports/figures/09_what_rescans_measure.png)
+
+Full validation: [`notebooks/02_simulator.ipynb`](notebooks/02_simulator.ipynb). Results are claims that *the method recovers the known truth*, not that it would cut Sainsbury's loss by a given amount; week 8 reruns the comparison under lower and higher loss settings.
 
 ## Ground rules
 
 - **No demographics or protected characteristics** in any model; they are used only for the fairness check. Proxies such as store location are checked too.
 - **Stopping an honest shopper is a cost** in the objective, not only £ recovered.
-- **No history is not a reason to rescan more:** new and non-Nectar shoppers get the standard rate.
+- **No history is not a reason to rescan more:** new SmartShop users get the standard rate.
 - **A colleague makes the final call.** Every decision comes with a plain-English reason and the items to check.
 - **Rescans never touch Nectar prices or points.** The Nectar link is only used positively.
 
@@ -104,7 +136,7 @@ Simulated rates are calibrated to published UK retail-loss research and recorded
 |---|---|
 | 1 ✅ | Repo, ingestion (shared with Nectar), SmartShop EDA |
 | 2 ✅ | dbt warehouse: session, scan-line (normal and Nectar price) and point-in-time shopper-history models, with tests |
-| 3 | Session simulator: honest, careless, opportunist, deliberate and adaptive shoppers, calibrated to published UK figures |
+| 3 ✅ | Session simulator: honest, careless, opportunist, deliberate and adaptive shoppers, calibrated to published ECR figures |
 | 4 | Basket model: which items are probably in the basket but unscanned |
 | 5 | Session risk model against three baselines: random, simple rules, top-k |
 | 6 | Game-theory rescan policy |
@@ -124,13 +156,14 @@ pip install -e ".[dev]"     # also installs the Nectar engine, pinned to an exac
 # put the CSVs in data/raw/
 make ingest                 # CSV -> typed Parquet + DuckDB warehouse (~3 s)
 make dbt                    # build and test the staging and mart models (~15 s)
+make simulate               # SmartShop sessions, scan events and today's rescans (~10 s)
 make eda                    # run the EDA notebook and export HTML
 make test                   # unit, leakage and data-quality tests
 make dbt-docs               # browse model documentation and lineage
 make sample                 # no data? build a synthetic warehouse with the same schema
 ```
 
-On Windows without `make`: `python -m smartshop.ingest.load_raw`, then `cd dbt; dbt build --profiles-dir .; cd ..`, then `pytest -q`. Use Python 3.12, as for Nectar.
+On Windows without `make`: `python -m smartshop.ingest.load_raw`, then `cd dbt; dbt build --profiles-dir .; cd ..`, then `python -m smartshop.simulate.simulator`, then `pytest -q`. Use Python 3.12, as for Nectar.
 
 ## Repository layout
 
@@ -139,10 +172,11 @@ On Windows without `make`: `python -m smartshop.ingest.load_raw`, then `cd dbt; 
 │   ├── config.py            # paths; reads business rules from dbt seeds
 │   ├── ingest/load_raw.py   # reuses Nectar's typed table specs -> Parquet + DuckDB
 │   ├── ingest/sample.py     # synthetic warehouse with the real schema (CI, demos)
+│   ├── simulate/            # SimConfig (sources), simulator, rescan model, calibration
 │   ├── warehouse.py         # connect to DuckDB, run dbt from Python
 │   └── viz.py               # chart style shared with Nectar
 ├── dbt/                     # seeds, staging, marts, 47 data tests
-├── notebooks/               # 01 EDA
+├── notebooks/               # 01 EDA · 02 simulator validation
 ├── reports/                 # HTML export + figures
 ├── tests/                   # marts on synthetic data, point-in-time leakage, data-quality contract
 └── .github/workflows/ci.yml # ruff + dbt parse + pytest (full dbt build on synthetic data)

@@ -1,4 +1,4 @@
-.PHONY: install ingest dbt dbt-docs sample eda test lint clean
+.PHONY: install ingest dbt dbt-docs sample simulate eda test lint clean
 
 RAW_DIR ?= data/raw
 
@@ -14,13 +14,17 @@ dbt:
 dbt-docs:
 	cd dbt && dbt docs generate --profiles-dir . && dbt docs serve --profiles-dir .
 
+simulate:
+	python -m smartshop.simulate.simulator
+
 sample:  # synthetic warehouse with the real schema, for trying the pipeline without the data
 	python -m smartshop.ingest.sample data/warehouse/sample.duckdb
 	cd dbt && SMARTSHOP_WAREHOUSE=../data/warehouse/sample.duckdb dbt build --profiles-dir .
 
 eda:
 	jupyter nbconvert --to notebook --execute --inplace notebooks/01_eda.ipynb
-	jupyter nbconvert --to html notebooks/01_eda.ipynb --output-dir reports
+	jupyter nbconvert --to notebook --execute --inplace notebooks/02_simulator.ipynb
+	jupyter nbconvert --to html notebooks/01_eda.ipynb notebooks/02_simulator.ipynb --output-dir reports
 
 test:
 	pytest -q

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "smartshop-loss-engine"
-version = "0.2.0"
+version = "0.3.0"
 description = "Risk-based SmartShop rescans: game-theory rescan policy, targeted item checks and Nectar-linked trust"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "pytest-cov", "ruff>=0.5", "pre-commit", "jupyter", "nbconvert", "dbt-duckdb>=1.9"]
+dev = ["pytest>=8.0", "pytest-cov", "ruff>=0.5", "pre-commit", "jupyter", "nbconvert", "dbt-duckdb>=1.9", "scikit-learn>=1.4"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
