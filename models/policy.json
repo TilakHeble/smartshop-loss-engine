@@ -1,0 +1,147 @@
+{
+  "recommended": {
+    "kind": "smooth",
+    "floor": 0.02,
+    "cap": 0.5,
+    "tau": 0.05,
+    "t": 0.5832778662443161
+  },
+  "all": {
+    "Random full rescans": {
+      "kind": "random",
+      "rate": 0.07127142627086869
+    },
+    "Threshold + random floor": {
+      "kind": "threshold",
+      "floor": 0.02,
+      "t": 0.7488087713727509
+    },
+    "Randomised, no cap": {
+      "kind": "smooth",
+      "floor": 0.02,
+      "cap": 1.0,
+      "tau": 0.25,
+      "t": 1.2238706946372986
+    },
+    "Randomised, cap 0.5 (recommended)": {
+      "kind": "smooth",
+      "floor": 0.02,
+      "cap": 0.5,
+      "tau": 0.05,
+      "t": 0.5832778662443161
+    },
+    "Randomised, cap 0.3": {
+      "kind": "smooth",
+      "floor": 0.02,
+      "cap": 0.3,
+      "tau": 0.05,
+      "t": 0.12351395934820175
+    }
+  },
+  "test_period": {
+    "loss_before_rescans": {
+      "Today: random partial + full": 42834.9528,
+      "Random full rescans": 43873.7911,
+      "Threshold + random floor": 42906.4168,
+      "Randomised, no cap": 43004.098,
+      "Randomised, cap 0.5 (recommended)": 43249.5647,
+      "Randomised, cap 0.3": 43419.6428
+    },
+    "recovered": {
+      "Today: random partial + full": 1195.7832,
+      "Random full rescans": 3022.7899,
+      "Threshold + random floor": 7301.7767,
+      "Randomised, no cap": 7483.7713,
+      "Randomised, cap 0.5 (recommended)": 6482.8224,
+      "Randomised, cap 0.3": 5578.2412
+    },
+    "loss_remaining": {
+      "Today: random partial + full": 41639.1695,
+      "Random full rescans": 40851.0012,
+      "Threshold + random floor": 35604.6401,
+      "Randomised, no cap": 35520.3267,
+      "Randomised, cap 0.5 (recommended)": 36766.7423,
+      "Randomised, cap 0.3": 37841.4016
+    },
+    "deliberate_loss": {
+      "Today: random partial + full": 31553.0623,
+      "Random full rescans": 32595.9406,
+      "Threshold + random floor": 31625.5113,
+      "Randomised, no cap": 31726.7525,
+      "Randomised, cap 0.5 (recommended)": 31978.4492,
+      "Randomised, cap 0.3": 32154.4473
+    },
+    "colleague_hours": {
+      "Today: random partial + full": 113.4436,
+      "Random full rescans": 113.4436,
+      "Threshold + random floor": 113.3828,
+      "Randomised, no cap": 113.4436,
+      "Randomised, cap 0.5 (recommended)": 113.4436,
+      "Randomised, cap 0.3": 113.4436
+    },
+    "rescans": {
+      "Today: random partial + full": 5677.68,
+      "Random full rescans": 3340.6844,
+      "Threshold + random floor": 1731.26,
+      "Randomised, no cap": 1776.3494,
+      "Randomised, cap 0.5 (recommended)": 1823.7844,
+      "Randomised, cap 0.3": 1924.1597
+    },
+    "honest_stops": {
+      "Today: random partial + full": 5428.2,
+      "Random full rescans": 3181.537,
+      "Threshold + random floor": 1578.72,
+      "Randomised, no cap": 1604.9097,
+      "Randomised, cap 0.5 (recommended)": 1664.8865,
+      "Randomised, cap 0.3": 1765.2343
+    },
+    "honest_stop_rate": {
+      "Today: random partial + full": 0.12,
+      "Random full rescans": 0.0706,
+      "Threshold + random floor": 0.0351,
+      "Randomised, no cap": 0.0357,
+      "Randomised, cap 0.5 (recommended)": 0.037,
+      "Randomised, cap 0.3": 0.0392
+    },
+    "opportunists_stealing": {
+      "Today: random partial + full": 0.1782,
+      "Random full rescans": 0.2179,
+      "Threshold + random floor": 0.2591,
+      "Randomised, no cap": 0.2518,
+      "Randomised, cap 0.5 (recommended)": 0.2489,
+      "Randomised, cap 0.3": 0.2417
+    },
+    "adaptive_stealing": {
+      "Today: random partial + full": 0.663,
+      "Random full rescans": 0.7319,
+      "Threshold + random floor": 0.7706,
+      "Randomised, no cap": 0.7672,
+      "Randomised, cap 0.5 (recommended)": 0.7748,
+      "Randomised, cap 0.3": 0.7765
+    },
+    "adaptive_taking_all": {
+      "Today: random partial + full": 0.5479,
+      "Random full rescans": 0.5874,
+      "Threshold + random floor": 0.558,
+      "Randomised, no cap": 0.563,
+      "Randomised, cap 0.5 (recommended)": 0.5756,
+      "Randomised, cap 0.3": 0.5832
+    },
+    "adaptive_holding_back": {
+      "Today: random partial + full": 0.1151,
+      "Random full rescans": 0.1445,
+      "Threshold + random floor": 0.2126,
+      "Randomised, no cap": 0.2042,
+      "Randomised, cap 0.5 (recommended)": 0.1992,
+      "Randomised, cap 0.3": 0.1933
+    },
+    "recovered_per_hour": {
+      "Today: random partial + full": 10.5408,
+      "Random full rescans": 26.6457,
+      "Threshold + random floor": 64.3993,
+      "Randomised, no cap": 65.9691,
+      "Randomised, cap 0.5 (recommended)": 57.1458,
+      "Randomised, cap 0.3": 49.1719
+    }
+  }
+}

@@ -8,13 +8,13 @@ SmartShop (scan-as-you-shop) loses money when items leave unscanned: some on pur
 
 It is the companion to the [Nectar Offer Engine](https://github.com/TilakHeble/nectar-offer-engine): the same members, the same data and shared code. Nectar decides each member's personalised prices; SmartShop is where the member sees them, Nectar price next to normal price, while scanning.
 
-> Status: **weeks 1–5 of 10 complete** (ingestion, EDA, dbt warehouse, calibrated simulator, basket model, risk model). 47 dbt data tests and 42 Python tests, including point-in-time leakage tests, run in CI on every push.
+> Status: **weeks 1–6 of 10 complete** (ingestion, EDA, dbt warehouse, calibrated simulator, basket model, risk model, rescan policy). 47 dbt data tests and 50 Python tests, including point-in-time leakage tests, run in CI on every push.
 
 ## What makes it different
 
 | Idea | What it does |
 |---|---|
-| ⭐ **Game-theory rescan policy** | Risk sets each session's rescan *probability*, chosen (as a Stackelberg security game, the method used to schedule airport checkpoints) so that a shopper who adapts to the policy has no safe way to skip items |
+| ⭐ **Game-theory rescan policy** | The store commits to rescan *probabilities*; shoppers learn them and choose whether, and how much, to steal (a Stackelberg game). Every policy is judged against their best responses, within today's colleague time, with a random floor and a per-member cap |
 | ⭐ **Targeted rescans: "check these items"** | A basket model, trained without any theft label, tells a colleague which product types to count, so honest mistakes are found with fewer units counted |
 | ⭐ **Nectar-linked trust** | A credit-score-style trust score, built from clean rescans and kept per member across stores, lowers rescans for the honest majority. It decays and never drops below the random floor |
 | **True loss from biased rescans** | Known rescan probabilities give an unbiased (inverse-probability-weighted) estimate of total loss, including sessions never checked |
@@ -93,12 +93,12 @@ Every SmartShop session is Nectar-linked: [Sainsbury's requires a Nectar card](h
 
 | Check | Simulated | Published |
 |---|---|---|
-| Sessions with an error: 20 / 50 / 100 units | 31% / 65% / 91% | 30% / 60% / 90% |
+| Sessions with an error: 20 / 50 / 100 units | 31% / 65% / 88% | 30% / 60% / 90% |
 | Non-scans as share of item errors (rest are double scans) | 76% | 77% |
-| Deliberate share of non-scanned value | 56% | 46–56% |
+| Deliberate share of non-scanned value | 55% | 46–56% |
 | Net loss, share of SmartShop sales | 2.0% | 0.96–4.68% |
 | Sessions rescanned today | 12% | ~12% |
-| Partial rescans that find an error | 3.2% | 2.88% |
+| Partial rescans that find an error | 3.0% | 2.88% |
 
 ![Error curve calibration](reports/figures/07_error_curve_calibration.png)
 
@@ -111,10 +111,10 @@ Every SmartShop session is Nectar-linked: [Sainsbury's requires a Nectar card](h
 
 | Finding | Implication |
 |---|---|
-| 14% of members cause 76% of the loss; genuine mistakes by everyone else are the other 24% | Two problems: catch deliberate skips, and fix honest mistakes without treating people as suspects |
+| 14% of members cause 75% of the loss; genuine mistakes by everyone else are the other 25% | Two problems: catch deliberate skips, and fix honest mistakes without treating people as suspects |
 | High-risk items are 19% of value but 47% of deliberately skipped value | Targeted rescans should look there first |
-| Random partial rescans put loss at 0.20% of sales, a tenth of the truth (2.04%); random full rescans estimate 1.99% (95% CI 1.46–2.53%) | Measure loss with a random floor of *full* rescans, never from partial checks (as [ECR] found in practice) |
-| Today's random rescans: 223 colleague hours recover \$10.69 an hour and 3.1% of loss; 96% of rescans stop someone who skipped nothing on purpose | **The baseline the policy must beat** |
+| Random partial rescans put loss at 0.23% of sales, about a ninth of the truth (2.04%); random full rescans estimate 1.97% (95% CI 1.51–2.45%) | Measure loss with a random floor of *full* rescans, never from partial checks (as [ECR] found in practice) |
+| Today's random rescans: 221 colleague hours recover \$10.94 an hour and 3.1% of loss; 96% of rescans stop someone who skipped nothing on purpose | **The baseline the policy must beat** |
 
 ![What rescans measure](reports/figures/09_what_rescans_measure.png)
 
@@ -131,9 +131,9 @@ Full validation: [`notebooks/02_simulator.ipynb`](notebooks/02_simulator.ipynb).
 
 | Finding | Implication |
 |---|---|
-| The model's check list finds as many honest mistakes as today's random units while counting ~25–30% fewer units (1.3–1.4x found per unit) | Faster, friendlier partial rescans for honest shoppers |
+| The model's check list finds as many honest mistakes as today's random units while counting about 25% fewer units (1.3–1.5x found per unit) | Faster, friendlier partial rescans for honest shoppers |
 | "Check the most valuable scanned items" finds about a third as much per unit as random | Intuition is not enough; every rule is measured against random |
-| No partial check, random or targeted, finds much deliberate loss; "this basket looks incomplete" is a weak risk signal on its own (AUC 0.57) | **Theft is caught by choosing *who* gets a full rescan** (weeks 5–6), not by item lists |
+| No partial check, random or targeted, finds much deliberate loss; "this basket looks incomplete" is a weak risk signal on its own (AUC 0.55) | **Theft is caught by choosing *who* gets a full rescan** (weeks 5–6), not by item lists |
 
 The gain is deliberately reported as modest: genuine mistakes fall roughly at random across units, so random picks already sample where they are. If real mistakes cluster on particular products (bulky items, loose produce, multi-buys), targeted lists gain more, and the random floor of full rescans is what would reveal it. Full analysis: [`notebooks/03_basket_model.ipynb`](notebooks/03_basket_model.ipynb).
 
@@ -141,28 +141,56 @@ The gain is deliberately reported as modest: genuine mistakes fall roughly at ra
 
 Week 4 showed partial checks rarely find items skipped on purpose (they are concealed), so catching theft is about **who gets a full rescan**. The risk model ranks sessions for it.
 
-- **Only what a store can observe.** Features: the session's scan log (pauses, pace, deletions, what was scanned) and the member's history from earlier trips (Nectar purchases, earlier sessions, earlier rescan outcomes, the basket model's "looks incomplete" gap). Labels: what *random full* rescans found: unbiased, but only 939 in the training period.
+- **Only what a store can observe.** Features: the session's scan log (pauses, pace, deletions, what was scanned) and the member's history from earlier trips (Nectar purchases, earlier sessions, earlier rescan outcomes, the basket model's "looks incomplete" gap). Labels: what *random full* rescans found: unbiased, but only 926 in the training period.
 - **Honest selection.** Label, features and model chosen by repeated cross-validation of *observable* value capture on those rescans; the hidden truth is used once, at the end. Chosen: logistic regression on 27 features, so every flag comes with plain-English reasons ("long pause between scans; usually deletes a lot").
 
 ![Risk capture curve](reports/figures/11_risk_capture_curve.png)
 
 | Flag the top 12% (today's rescan rate) | Deliberate loss caught | Net loss caught |
 |---|---|---|
-| Random (today) | 12% | 13% |
-| Biggest baskets | 21% | 26% |
-| Rule of thumb (red-flag points) | 33% | 34% |
-| Best single signal (deletions) | 48% | 42% |
-| **Risk model** | **51%** | **52%** |
+| Random (today) | 13% | 12% |
+| Biggest baskets | 22% | 28% |
+| Rule of thumb (red-flag points) | 36% | 37% |
+| Best single signal (deletion rate) | 50% | 40% |
+| **Risk model** | **53%** | **54%** |
 | Ceiling: same features, trained on hidden truth | 82% | 67% |
 
 | Finding | Implication |
 |---|---|
 | About 4x today's random selection at the same rescan rate | Who gets rescanned is where the gain is |
-| A 5–20% random full floor adds only 2–5 points; the ceiling is trained on *why* items were missing | The bottleneck is label quality (a rescan records *that* items were missing, not why), more than label count |
-| **The first fairness check failed:** handset users, evening shoppers and new SmartShop users were flagged far more, though none of these changes behaviour. With so few labels the model learned spurious channel and time effects, and tenure features made newcomers look unusual | Channel, time of day and tenure removed from scoring; missing history filled with typical values. All three now pass (honest-stop ratios 0.97–0.99) |
-| Honest households with bigger baskets are still stopped more: honest-stop ratios 0.40 (age), 0.59 (household size), 0.32 (income), with wide intervals (some groups have very few households) | A review item, not proof. Carried into the policy (a per-member cap on rescans, week 6) and the full check (week 10) |
+| A 5–20% random full floor adds only 2–6 points; the ceiling is trained on *why* items were missing | The bottleneck is label quality (a rescan records *that* items were missing, not why), more than label count |
+| **The first fairness check failed:** handset users, evening shoppers and new SmartShop users were flagged far more, though none of these changes behaviour. With so few labels the model learned spurious channel and time effects, and tenure features made newcomers look unusual | Channel, time of day and tenure removed from scoring; missing history filled with typical values. Channel and evening shoppers now pass comfortably (0.97–0.98); new users pass narrowly (0.82, interval 0.69–0.97) |
+| Honest households with bigger baskets are still stopped more: honest-stop ratios 0.51 (age), 0.53 (household size), 0.39 (income), with wide intervals (some groups have very few households) | A review item, not proof. Carried into the policy (a per-member cap on rescans, week 6) and the full check (week 10) |
 
 Full analysis: [`notebooks/04_risk_model.ipynb`](notebooks/04_risk_model.ipynb).
+
+## Week 6: the rescan game
+
+The policy decides **who gets a full rescan, with what probability**, using exactly today's colleague time. It must work against shoppers who learn it.
+
+- **The game.** The store leads: it commits to a function from risk score to rescan probability. Shoppers follow: opportunists steal less when a rescan is likelier; adaptive shoppers choose to take 0, 25, 50 or 100% of their usual haul, since taking less keeps their scan log calmer and their score lower. Every version of reality is simulated once from the same random draws, so any policy is evaluated exactly against shoppers' best responses.
+- **Fair comparison.** Policy shapes are fitted on the tuning period (days 331–500); the test period only evaluates, with volume set to today's 113 colleague hours. Every policy keeps the **2% random floor** of full rescans: unbiased measurement and training labels.
+
+![Policy frontier](reports/figures/13_policy_frontier.png)
+
+| Same colleague time (test period) | Loss remaining | Recovered | Per colleague hour | Honest shoppers stopped |
+|---|---|---|---|---|
+| Today: random partial + full | \$41,639 | \$1,196 | \$11 | 5,428 |
+| Random full rescans | \$40,851 | \$3,023 | \$27 | 3,182 |
+| Threshold + random floor | \$35,605 | \$7,302 | \$64 | 1,579 |
+| **Randomised, cap 0.5 (recommended)** | **\$36,767** | **\$6,483** | **\$57** | **1,665** |
+
+| Finding | Implication |
+|---|---|
+| The recommended policy leaves 12% less loss, recovers 5.4x as much and stops 69% fewer honest shoppers than today | Rescans go where they find things |
+| Judged against shoppers who keep today's behaviour, a threshold policy's recovery is overstated by 37% | Policies must be evaluated against shoppers who learn them |
+| Adaptive shoppers do exploit a threshold (about a fifth hold back to stay under it), but randomising gains little: deterring them needs about a one-in-three rescan chance, while the budget allows about 7% | Here the store wins by **detection, not deterrence**; the best policy is close to threshold + random floor |
+| Without a cap, some honest members would be rescanned on nearly every trip; a cap of 0.5 stops that for about 3% more loss, but moves group gaps only a little | Cap 0.5 recommended; age, household and income gaps stay a monitored review item (week 10) |
+| Today's many cheap partial rescans do deter opportunists (18% steal vs 22% under fewer, full rescans) | A deliberate trade: a little less deterrence for about 5x the recovery |
+
+![Static vs strategic](reports/figures/14_static_vs_strategic.png)
+
+Full analysis: [`notebooks/05_rescan_policy.ipynb`](notebooks/05_rescan_policy.ipynb). The game is one session at a time (member history held at today's); week 8 stress-tests the shoppers' assumed penalty and sensitivity.
 
 ## Ground rules
 
@@ -183,7 +211,7 @@ Full analysis: [`notebooks/04_risk_model.ipynb`](notebooks/04_risk_model.ipynb).
 | 3 ✅ | Session simulator: honest, careless, opportunist, deliberate and adaptive shoppers, calibrated to published ECR figures |
 | 4 ✅ | Basket model: which items are probably in the basket but unscanned |
 | 5 ✅ | Session risk model against three baselines: random, simple rules, top-k |
-| 6 | Game-theory rescan policy |
+| 6 ✅ | Game-theory rescan policy |
 | 7 | Targeted rescans and Nectar trust score |
 | 8 | True loss from biased rescans (IPW) and the headline comparison |
 | 9 | FastAPI rescan-decision API in Docker; gated weekly pipeline |
@@ -203,13 +231,14 @@ make dbt                    # build and test the staging and mart models (~15 s)
 make simulate               # SmartShop sessions, scan events and today's rescans (~10 s)
 make basket                 # train the masked-basket model (~1.5 min)
 make risk                   # session risk model (first run scores the basket gap, ~5 min)
+make policy                 # solve the rescan game, compare policies (~1 min)
 make eda                    # run the EDA notebook and export HTML
 make test                   # unit, leakage and data-quality tests
 make dbt-docs               # browse model documentation and lineage
 make sample                 # no data? build a synthetic warehouse with the same schema
 ```
 
-On Windows without `make`: `python -m smartshop.ingest.load_raw`, then `cd dbt; dbt build --profiles-dir .; cd ..`, then `python -m smartshop.simulate.simulator`, then `python -m smartshop.basket.model`, then `python -m smartshop.risk.model`, then `pytest -q`. Use Python 3.12, as for Nectar.
+On Windows without `make`: `python -m smartshop.ingest.load_raw`, then `cd dbt; dbt build --profiles-dir .; cd ..`, then `python -m smartshop.simulate.simulator`, then `python -m smartshop.basket.model`, then `python -m smartshop.risk.model`, then `python -m smartshop.policy.search`, then `pytest -q`. Use Python 3.12, as for Nectar.
 
 ## Repository layout
 
@@ -221,10 +250,11 @@ On Windows without `make`: `python -m smartshop.ingest.load_raw`, then `cd dbt; 
 │   ├── simulate/            # SimConfig (sources), simulator, rescan model, calibration
 │   ├── basket/              # observed history, masked-basket features, LightGBM model, fair evaluation
 │   ├── risk/                # observable risk features, honest selection, evaluation, fairness
+│   ├── policy/              # the rescan game: counterfactual worlds, best responses, policy search
 │   ├── warehouse.py         # connect to DuckDB, run dbt from Python
 │   └── viz.py               # chart style shared with Nectar
 ├── dbt/                     # seeds, staging, marts, 47 data tests
-├── notebooks/               # 01 EDA · 02 simulator validation · 03 basket model · 04 risk model
+├── notebooks/               # 01 EDA · 02 simulator validation · 03 basket model · 04 risk model · 05 rescan policy
 ├── models/                  # basket and risk metrics (+ model files, generated by make basket / make risk)
 ├── reports/                 # HTML export + figures
 ├── tests/                   # marts on synthetic data, point-in-time leakage, data-quality contract
@@ -233,4 +263,4 @@ On Windows without `make`: `python -m smartshop.ingest.load_raw`, then `cd dbt; 
 
 ## Tech stack
 
-Python · SQL · DuckDB · Parquet · dbt · LightGBM · scikit-learn · pytest · GitHub Actions. To come: PuLP · MLflow · FastAPI · Docker · Prefect · Streamlit.
+Python · SQL · DuckDB · Parquet · dbt · LightGBM · scikit-learn · pytest · GitHub Actions. To come: MLflow · FastAPI · Docker · Prefect · Streamlit.

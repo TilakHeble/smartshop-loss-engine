@@ -1,0 +1,118 @@
+"""The rescan game on the synthetic warehouse (runs in CI)."""
+
+import shutil
+
+import numpy as np
+import pytest
+
+from smartshop.basket.data import prepare
+from smartshop.policy.game import (
+    STRATEGIC,
+    build_game,
+    fit_to_budget,
+    outcome,
+    random_policy,
+    responses,
+    smooth_policy,
+    threshold_policy,
+    today_hours,
+)
+from smartshop.risk.features import build
+from smartshop.risk.model import FEATURE_SETS, LABELS, candidates, observed_labels
+from smartshop.simulate.config import SimConfig
+from smartshop.simulate.simulator import (
+    build_world,
+    load_baskets,
+    simulate,
+    simulate_behaviour,
+    write,
+)
+from smartshop.warehouse import connect
+
+CFG = SimConfig(seed=7, status_quo_full_rate=0.3, status_quo_partial_rate=0.1)
+
+
+@pytest.fixture(scope="module")
+def game(sample_warehouse, tmp_path_factory):
+    path = tmp_path_factory.mktemp("policy") / "sim.duckdb"
+    shutil.copy(sample_warehouse, path)
+    c = connect(path)
+    tables = simulate(c, CFG)
+    c.close()
+    write(tables, path)
+    c = connect(path)
+    prepare(c, min_baskets=3)
+    feats = build(c)
+    cols = FEATURE_SETS["session+history"]
+    lab = feats.merge(observed_labels(c), on="basket_id")
+    model = candidates()["logistic"].fit(lab[cols], LABELS["found anything"](lab))
+    g = build_game(c, feats, model, cols, (1, 711), cfg=CFG)
+    yield c, g
+    c.close()
+
+
+def test_non_strategic_shoppers_are_the_same_in_every_version(game):
+    _, g = game
+    s = g.sessions
+    calm = ~s.gt_type.isin(STRATEGIC)
+    for v in ["score", "net_loss", "deliberate_value", "full_find"]:
+        m = g.matrix(v)[:, calm.to_numpy()]
+        assert np.allclose(m, m[0], equal_nan=True)
+
+
+def test_haul_grows_with_level(game):
+    _, g = game
+    haul = g.matrix("deliberate_value")
+    assert (np.diff(haul, axis=0) >= -1e-9).all()
+    strategic = g.sessions.gt_type.isin(STRATEGIC).to_numpy()
+    assert (
+        haul[0][strategic] == 0
+    ).all()  # the honest version of a strategic shopper takes nothing
+
+
+def test_opportunists_match_the_simulator_under_todays_rescans(game):
+    c, g = game
+    q = CFG.status_quo_partial_rate + CFG.status_quo_full_rate
+    choice = responses(g, None, q_today=q)
+    world = build_world(*load_baskets(c), CFG)
+    s, _ = simulate_behaviour(world, CFG, rescan_prob=q)
+    sim = s.set_index("basket_id").gt_intent
+    opp = g.sessions.gt_type == "opportunist"
+    ids = g.sessions.basket_id[opp]
+    assert ((choice[opp.to_numpy()] > 0) == sim.loc[ids].to_numpy()).all()
+
+
+def test_more_rescans_deter_strategic_shoppers(game):
+    _, g = game
+    low, high = outcome(g, random_policy(0.01)), outcome(g, random_policy(0.6))
+    assert high["opportunists_stealing"] <= low["opportunists_stealing"]
+    assert high["adaptive_stealing"] <= low["adaptive_stealing"]
+
+
+def test_accounting(game):
+    _, g = game
+    for pol in [
+        random_policy(0.1),
+        threshold_policy(0.5, 0.02),
+        smooth_policy(0.0, 0.02, 0.5, 0.25),
+    ]:
+        o = outcome(g, pol)
+        assert o["loss_remaining"] == pytest.approx(o["loss_before_rescans"] - o["recovered"])
+        assert 0 <= o["honest_stops"] <= o["rescans"] + 1e-9
+        assert o["colleague_hours"] >= 0
+
+
+def test_policies_respect_floor_and_cap():
+    score = np.linspace(0.001, 0.999, 200)
+    p = smooth_policy(0.0, 0.02, 0.5, 0.25)(score)
+    assert p.min() >= 0.02 - 1e-12 and p.max() <= 0.5 + 1e-12
+    assert (np.diff(p) >= 0).all()
+    t = threshold_policy(0.5, 0.02)(score)
+    assert set(np.unique(t)) == {0.02, 1.0}
+
+
+def test_fit_to_budget_uses_no_more_than_the_budget(game):
+    _, g = game
+    hours = today_hours(g)
+    pol, _ = fit_to_budget(g, lambda t: smooth_policy(t, 0.02, 0.5, 0.25), hours, -12, 12, iters=25)
+    assert outcome(g, pol)["colleague_hours"] <= hours * 1.001

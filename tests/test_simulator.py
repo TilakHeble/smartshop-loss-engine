@@ -60,6 +60,20 @@ def test_simulation_is_reproducible(sample_con, tables):
     assert not tables["sim_truth.members"].gt_type.equals(other["sim_truth.members"].gt_type)
 
 
+def test_world_does_not_depend_on_row_order(sample_con):
+    """Databases may return rows in any order; the simulated world must not change with it."""
+    trips, lines = load_baskets(sample_con)
+    a = build_world(trips, lines, SimConfig(seed=1))
+    b = build_world(
+        trips.sample(frac=1, random_state=0),
+        lines.sample(frac=1, random_state=1),
+        SimConfig(seed=1),
+    )
+    pd.testing.assert_frame_equal(a.members, b.members)
+    pd.testing.assert_frame_equal(a.sessions, b.sessions)
+    pd.testing.assert_frame_equal(a.units, b.units)
+
+
 def test_deterrence_with_common_random_numbers(world):
     cfg = SimConfig(seed=1)
     s0, u0 = simulate_behaviour(world, cfg, rescan_prob=0.0)

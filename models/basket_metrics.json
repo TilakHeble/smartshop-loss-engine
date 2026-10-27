@@ -1,9 +1,9 @@
 {
-  "train_pairs": 1055142,
-  "train_baskets": 34870,
-  "masked_test_auc": 0.9312093130850081,
-  "masked_test_ap": 0.12741074170073197,
-  "masked_test_logloss": 0.011803732675327966,
-  "masked_test_mean_pred": 0.0026396661908743143,
-  "masked_test_base_rate": 0.0024641145766482694
+  "train_pairs": 1053927,
+  "train_baskets": 34836,
+  "masked_test_auc": 0.9330348783937561,
+  "masked_test_ap": 0.12896631366510516,
+  "masked_test_logloss": 0.011757307995840712,
+  "masked_test_mean_pred": 0.002574890154556077,
+  "masked_test_base_rate": 0.0024661974181234927
 }

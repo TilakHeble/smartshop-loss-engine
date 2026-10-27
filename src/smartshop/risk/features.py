@@ -73,15 +73,14 @@ SESSION_FEATURES = [f for f in SESSION_FEATURES if f not in NOT_FOR_SCORING]
 SCORING_HISTORY = [f for f in HISTORY_FEATURES if f not in NOT_FOR_SCORING]
 
 
-def build(con: duckdb.DuckDBPyConnection, peak_hours=(16, 17, 18)) -> pd.DataFrame:
-    """One row per SmartShop session with all observable features.
+def session_sql(sessions: str, events: str, peak_hours=(16, 17, 18)) -> str:
+    """SELECT for one row of scan-log features per session, from any sessions/events tables.
 
-    Requires smartshop.basket.data.prepare(con) to have created obs_trips and obs_basket_comm.
+    Used for the real log (sim_obs) and for counterfactual logs ("what if this shopper had / had
+    not stolen") when the rescan policy is evaluated against shoppers who respond to it.
     """
     peaks = ", ".join(str(h) for h in peak_hours)
-    con.execute(
-        f"""
-        CREATE OR REPLACE TEMP TABLE risk_session AS
+    return f"""
         WITH ev AS (
             SELECT e.basket_id, e.seconds_from_start AS t, e.action, e.product_id, e.unit_price,
                    e.is_high_risk,
@@ -89,7 +88,7 @@ def build(con: duckdb.DuckDBPyConnection, peak_hours=(16, 17, 18)) -> pd.DataFra
                        AS is_late_scan,
                    e.seconds_from_start - LAG(e.seconds_from_start) OVER (
                        PARTITION BY e.basket_id ORDER BY e.event_seq) AS gap
-            FROM sim_obs.scan_events e JOIN sim_obs.sessions s USING (basket_id)
+            FROM {events} e JOIN {sessions} s USING (basket_id)
         ),
         agg AS (
             SELECT basket_id,
@@ -111,7 +110,7 @@ def build(con: duckdb.DuckDBPyConnection, peak_hours=(16, 17, 18)) -> pd.DataFra
         ),
         rep AS (
             SELECT basket_id, COUNT(*) AS repeat_scans FROM (
-                SELECT basket_id, product_id FROM sim_obs.scan_events WHERE action = 'scan'
+                SELECT basket_id, product_id FROM {events} WHERE action = 'scan'
                 GROUP BY 1, 2 HAVING COUNT(*) > 1
             ) GROUP BY 1
         )
@@ -130,11 +129,21 @@ def build(con: duckdb.DuckDBPyConnection, peak_hours=(16, 17, 18)) -> pd.DataFra
                COALESCE(r.repeat_scans, 0)   AS repeat_scans,
                (s.hour_of_day IN ({peaks}))::INT AS is_peak,
                (s.channel = 'app')::INT      AS is_app
-        FROM sim_obs.sessions s
+        FROM {sessions} s
         JOIN obs_trips t USING (basket_id)
         LEFT JOIN agg a USING (basket_id)
         LEFT JOIN rep r USING (basket_id)
-        """
+    """
+
+
+def build(con: duckdb.DuckDBPyConnection, peak_hours=(16, 17, 18)) -> pd.DataFrame:
+    """One row per SmartShop session with all observable features.
+
+    Requires smartshop.basket.data.prepare(con) to have created obs_trips and obs_basket_comm.
+    """
+    con.execute(
+        "CREATE OR REPLACE TEMP TABLE risk_session AS "
+        + session_sql("sim_obs.sessions", "sim_obs.scan_events", peak_hours)
     )
     # Every trip the store observed (till and SmartShop), with what it recorded.
     con.execute(
@@ -144,10 +153,11 @@ def build(con: duckdb.DuckDBPyConnection, peak_hours=(16, 17, 18)) -> pd.DataFra
             SELECT commodity, BOOL_OR(is_high_risk) AS hr FROM marts.dim_product GROUP BY 1
         )
         SELECT t.basket_id, t.member_id, t.trip_order, t.day, t.is_smartshop,
-               SUM(b.units) AS units, SUM(b.value) AS value,
-               SUM(b.value * COALESCE(hr.hr, false)::INT) AS hr_value
+               COALESCE(SUM(b.units), 0) AS units, COALESCE(SUM(b.value), 0) AS value,
+               COALESCE(SUM(b.value * COALESCE(hr.hr, false)::INT), 0) AS hr_value
         FROM obs_trips t
-        JOIN obs_basket_comm b USING (basket_id)
+        -- every trip counts, including a SmartShop session where nothing was scanned
+        LEFT JOIN obs_basket_comm b USING (basket_id)
         LEFT JOIN hr USING (commodity)
         GROUP BY 1, 2, 3, 4, 5
         """
@@ -191,7 +201,27 @@ def build(con: duckdb.DuckDBPyConnection, peak_hours=(16, 17, 18)) -> pd.DataFra
         FROM risk_session rs JOIN hist h USING (basket_id)
         """
     ).df()
+    return derive(df)
 
+
+HISTORY_COLUMNS = [
+    "prior_trips",
+    "prior_ss_sessions",
+    "first_ss_day",
+    "m_avg_units",
+    "m_hr_share",
+    "m_min_per_unit",
+    "m_delete_rate",
+    "prior_rescans",
+    "prior_found",
+    "prior_full_rescans",
+    "prior_full_found",
+]
+
+
+def derive(df: pd.DataFrame) -> pd.DataFrame:
+    """Ratios and comparisons with the member's usual behaviour."""
+    df = df.copy()
     n = df.scanned_units.clip(lower=1)
     df["delete_rate"] = df.n_deletes / n
     df["min_per_unit"] = df.duration_min / n

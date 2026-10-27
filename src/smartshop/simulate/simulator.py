@@ -57,18 +57,24 @@ def load_baskets(con: duckdb.DuckDBPyConnection) -> tuple[pd.DataFrame, pd.DataF
         SELECT basket_id, member_id, store_id, day, week_no, checkout_minute, hour_of_day,
                n_units, n_lines, nectar_value, trip_seq
         FROM marts.fct_trip
+        ORDER BY basket_id
         """
     ).df()
     lines = con.sql(
         """
         SELECT basket_id, product_id, department, is_high_risk, quantity, nectar_unit_price
         FROM marts.fct_scan_line
+        ORDER BY basket_id, product_id
         """
     ).df()
     return trips, lines
 
 
 def build_world(trips: pd.DataFrame, lines: pd.DataFrame, cfg: SimConfig) -> World:
+    # Fix the row order first: a database may return rows in any order (DuckDB reads in
+    # parallel), and every random draw below is assigned by position.
+    trips = trips.sort_values("basket_id", kind="stable").reset_index(drop=True)
+    lines = lines.sort_values(["basket_id", "product_id"], kind="stable").reset_index(drop=True)
     rng = np.random.default_rng(cfg.seed)
 
     # Members: hidden type, channel, when they started using SmartShop.
@@ -121,11 +127,22 @@ def build_world(trips: pd.DataFrame, lines: pd.DataFrame, cfg: SimConfig) -> Wor
 # --------------------------------------------------------------------------------------------
 
 
-def simulate_behaviour(world: World, cfg: SimConfig, rescan_prob: np.ndarray | float) -> tuple:
+def simulate_behaviour(
+    world: World,
+    cfg: SimConfig,
+    rescan_prob: np.ndarray | float,
+    force_intent: np.ndarray | None = None,
+    skip_scale: np.ndarray | float = 1.0,
+) -> tuple:
     """Return (sessions, units) with hidden truth, for a given per-session rescan probability.
 
     rescan_prob is the chance each session is rescanned under the policy in force (aligned with
     world.sessions). Opportunists are deterred by it; adaptive shoppers best-respond to it.
+    force_intent (optional, aligned with world.sessions): 1 or 0 to fix a session's intent, -1 to
+    leave it to the shopper. Used to build "what if they had / had not stolen" counterfactuals;
+    every other random draw is unchanged.
+    skip_scale (optional, per session): how much of their usual haul a thief takes (1 = all).
+    Draws are shared, so a lower scale skips a subset of the same units.
     """
     s = world.sessions.copy()
     s["rescan_prob"] = np.broadcast_to(np.asarray(rescan_prob, dtype=float), (len(s),))
@@ -140,7 +157,10 @@ def simulate_behaviour(world: World, cfg: SimConfig, rescan_prob: np.ndarray | f
     base = u.gt_type.map(cfg.skip_base).fillna(0.0).to_numpy()
     price_f = np.minimum(cfg.price_cap, np.sqrt(u.unit_price.to_numpy() / cfg.price_ref))
     risk_f = np.where(u.is_high_risk.to_numpy(), cfg.high_risk_skip_factor, 1.0)
-    p_skip = np.minimum(cfg.skip_cap, base * price_f * risk_f)
+    scale = pd.Series(
+        np.broadcast_to(np.asarray(skip_scale, dtype=float), (len(s),)), index=s.basket_id
+    )
+    p_skip = np.minimum(cfg.skip_cap, base * price_f * risk_f) * u.basket_id.map(scale).to_numpy()
     would_skip = u.u_skip.to_numpy() < p_skip
 
     # Session intent.
@@ -158,6 +178,9 @@ def simulate_behaviour(world: World, cfg: SimConfig, rescan_prob: np.ndarray | f
     d = cfg.adaptive_perceived_detection
     worth_it = v * (1 - q * d) > q * d * cfg.adaptive_penalty
     intent = np.where(stype == "adaptive", worth_it & (v > 0), intent)
+    if force_intent is not None:
+        f = np.asarray(force_intent)
+        intent = np.where(f >= 0, f == 1, intent)
     s["gt_intent"] = intent
 
     u = u.merge(s[["basket_id", "gt_intent"]], on="basket_id")
