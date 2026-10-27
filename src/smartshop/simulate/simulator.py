@@ -104,6 +104,15 @@ def build_world(trips: pd.DataFrame, lines: pd.DataFrame, cfg: SimConfig) -> Wor
     for name in ["u_skip", "u_acc", "u_over", "u_delete", "u_order", "u_time", "u_pick", "u_det"]:
         u[name] = rng.random(m)
     u["n_honest_deletes"] = rng.poisson(1.0, m)  # scaled later by the delete rate
+
+    # Member habits unrelated to honesty, from a separate stream so every draw above (types,
+    # misses, rescans) is unchanged by adding them.
+    rng_h = np.random.default_rng(cfg.seed + 1000)
+    for col, sd in [("gt_delete_mult", cfg.member_delete_sd), ("gt_pace_mult", cfg.member_pace_sd)]:
+        members[col] = np.exp(rng_h.normal(-(sd**2) / 2, sd, n))
+    s["duration_min"] = s.duration_min * s.member_id.map(
+        members.set_index("member_id").gt_pace_mult
+    )
     return World(members=members, sessions=s, units=u)
 
 
@@ -122,7 +131,9 @@ def simulate_behaviour(world: World, cfg: SimConfig, rescan_prob: np.ndarray | f
     s["rescan_prob"] = np.broadcast_to(np.asarray(rescan_prob, dtype=float), (len(s),))
     u = world.units.merge(
         s[["basket_id", "member_id", "n_units"]], on="basket_id", how="left", validate="many_to_one"
-    ).merge(world.members[["member_id", "gt_type", "gt_error_mult"]], on="member_id")
+    ).merge(
+        world.members[["member_id", "gt_type", "gt_error_mult", "gt_delete_mult"]], on="member_id"
+    )
     stype = s.gt_type  # sessions carry the member's hidden type from build_world
 
     # Per-unit probability of a deliberate skip, if the session has intent.
@@ -231,7 +242,7 @@ def scan_events(s: pd.DataFrame, u: pd.DataFrame, cfg: SimConfig) -> pd.DataFram
     ev.append(sd[base_cols].assign(t=sd.t + 3 + 5 * sd.u_time, action="delete"))
     # ordinary deletes on scanned units (mistake or changed mind): scan, delete, scan again
     rate = np.where(scanned.gt_intent, cfg.intent_delete_rate, cfg.honest_delete_rate)
-    nd = scanned[scanned.u_delete < rate]
+    nd = scanned[scanned.u_delete < rate * scanned.gt_delete_mult]
     ev.append(nd[base_cols].assign(t=nd.t - 6, action="scan"))
     ev.append(nd[base_cols].assign(t=nd.t - 4, action="delete"))
 

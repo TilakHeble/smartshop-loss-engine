@@ -90,6 +90,11 @@ class SimConfig:
     minutes_per_unit: float = 0.75  # time in store depends on the TRUE basket
     minutes_sd_log: float = 0.35
     honest_delete_rate: float = 0.015  # scan, delete, rescan (changed mind / mistake)
+    # Shoppers differ in habits that have nothing to do with honesty: some delete and rescan a
+    # lot, some shop slowly. Per-member multipliers (lognormal, mean 1, hidden) stop these habits
+    # from becoming a perfect fingerprint once averaged over a member's history.
+    member_delete_sd: float = 0.8
+    member_pace_sd: float = 0.25
     intent_delete_rate: float = 0.025
     late_departments: tuple = ("MEAT", "SEAFOOD", "DELI", "MEAT-PCKGD")  # picked near the end
 

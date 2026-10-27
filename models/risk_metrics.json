@@ -1,0 +1,118 @@
+{
+  "n_training_labels": 939,
+  "selection": [
+    {
+      "label": "found anything",
+      "features": "session+history+gap",
+      "model": "logistic",
+      "cv_value_capture_top20": 0.6301
+    },
+    {
+      "label": "found anything",
+      "features": "session+history",
+      "model": "logistic",
+      "cv_value_capture_top20": 0.6272
+    },
+    {
+      "label": "found $5+",
+      "features": "session+history+gap",
+      "model": "logistic",
+      "cv_value_capture_top20": 0.6251
+    },
+    {
+      "label": "found anything",
+      "features": "session",
+      "model": "logistic",
+      "cv_value_capture_top20": 0.6237
+    },
+    {
+      "label": "found $5+",
+      "features": "session+history",
+      "model": "logistic",
+      "cv_value_capture_top20": 0.6073
+    },
+    {
+      "label": "found $5+",
+      "features": "session",
+      "model": "logistic",
+      "cv_value_capture_top20": 0.5757
+    },
+    {
+      "label": "found $10+",
+      "features": "session",
+      "model": "logistic",
+      "cv_value_capture_top20": 0.5619
+    },
+    {
+      "label": "found $10+",
+      "features": "session+history+gap",
+      "model": "logistic",
+      "cv_value_capture_top20": 0.5616
+    },
+    {
+      "label": "found $10+",
+      "features": "session+history",
+      "model": "logistic",
+      "cv_value_capture_top20": 0.5518
+    },
+    {
+      "label": "found $5+",
+      "features": "session",
+      "model": "lightgbm",
+      "cv_value_capture_top20": 0.5364
+    },
+    {
+      "label": "found $10+",
+      "features": "session+history+gap",
+      "model": "lightgbm",
+      "cv_value_capture_top20": 0.5232
+    },
+    {
+      "label": "found $5+",
+      "features": "session+history+gap",
+      "model": "lightgbm",
+      "cv_value_capture_top20": 0.5232
+    },
+    {
+      "label": "found anything",
+      "features": "session+history+gap",
+      "model": "lightgbm",
+      "cv_value_capture_top20": 0.5184
+    },
+    {
+      "label": "found anything",
+      "features": "session",
+      "model": "lightgbm",
+      "cv_value_capture_top20": 0.5122
+    },
+    {
+      "label": "found $10+",
+      "features": "session",
+      "model": "lightgbm",
+      "cv_value_capture_top20": 0.5101
+    },
+    {
+      "label": "found $5+",
+      "features": "session+history",
+      "model": "lightgbm",
+      "cv_value_capture_top20": 0.5082
+    },
+    {
+      "label": "found anything",
+      "features": "session+history",
+      "model": "lightgbm",
+      "cv_value_capture_top20": 0.4972
+    },
+    {
+      "label": "found $10+",
+      "features": "session+history",
+      "model": "lightgbm",
+      "cv_value_capture_top20": 0.4969
+    }
+  ],
+  "chosen": {
+    "label": "found anything",
+    "features": "session+history+gap",
+    "model": "logistic"
+  }
+}

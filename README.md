@@ -8,7 +8,7 @@ SmartShop (scan-as-you-shop) loses money when items leave unscanned: some on pur
 
 It is the companion to the [Nectar Offer Engine](https://github.com/TilakHeble/nectar-offer-engine): the same members, the same data and shared code. Nectar decides each member's personalised prices; SmartShop is where the member sees them, Nectar price next to normal price, while scanning.
 
-> Status: **weeks 1–4 of 10 complete** (ingestion, EDA, dbt warehouse, calibrated simulator, basket model). 47 dbt data tests and 33 Python tests, including a point-in-time leakage test, run in CI on every push.
+> Status: **weeks 1–5 of 10 complete** (ingestion, EDA, dbt warehouse, calibrated simulator, basket model, risk model). 47 dbt data tests and 42 Python tests, including point-in-time leakage tests, run in CI on every push.
 
 ## What makes it different
 
@@ -104,7 +104,7 @@ Every SmartShop session is Nectar-linked: [Sainsbury's requires a Nectar card](h
 
 **Design choices that matter later**
 - **Truth and observations are separated.** Models only ever read `sim_obs` (sessions, scan events, rescan results). The hidden truth sits in `sim_truth`, and a test fails if any `gt_` column reaches `sim_obs`.
-- **Signals come from mechanisms, not labels.** Shopping time follows the *true* basket, so a session with unscanned items looks slow for what was scanned; some deliberate skips are scan-then-delete. Each signal alone is weak (AUC 0.58–0.67), as in a real store.
+- **Signals come from mechanisms, not labels.** Shopping time follows the *true* basket, so a session with unscanned items looks slow for what was scanned; some deliberate skips are scan-then-delete. Each signal alone is weak (AUC 0.56–0.66), as in a real store.
 - **Shoppers respond to the policy.** Opportunists are deterred as the rescan probability rises; adaptive shoppers steal only when the expected haul beats the expected cost of being caught. This is what the game-theory policy (week 6) has to beat.
 - **Common random numbers.** Every random draw is made once per unit and session, so any two policies are compared on identical shoppers and baskets.
 - Every session's scan log accounts exactly for its true basket: scanned = true − missed + double-scanned (tested).
@@ -137,9 +137,36 @@ Full validation: [`notebooks/02_simulator.ipynb`](notebooks/02_simulator.ipynb).
 
 The gain is deliberately reported as modest: genuine mistakes fall roughly at random across units, so random picks already sample where they are. If real mistakes cluster on particular products (bulky items, loose produce, multi-buys), targeted lists gain more, and the random floor of full rescans is what would reveal it. Full analysis: [`notebooks/03_basket_model.ipynb`](notebooks/03_basket_model.ipynb).
 
+## Week 5: the session risk model
+
+Week 4 showed partial checks rarely find items skipped on purpose (they are concealed), so catching theft is about **who gets a full rescan**. The risk model ranks sessions for it.
+
+- **Only what a store can observe.** Features: the session's scan log (pauses, pace, deletions, what was scanned) and the member's history from earlier trips (Nectar purchases, earlier sessions, earlier rescan outcomes, the basket model's "looks incomplete" gap). Labels: what *random full* rescans found: unbiased, but only 939 in the training period.
+- **Honest selection.** Label, features and model chosen by repeated cross-validation of *observable* value capture on those rescans; the hidden truth is used once, at the end. Chosen: logistic regression on 27 features, so every flag comes with plain-English reasons ("long pause between scans; usually deletes a lot").
+
+![Risk capture curve](reports/figures/11_risk_capture_curve.png)
+
+| Flag the top 12% (today's rescan rate) | Deliberate loss caught | Net loss caught |
+|---|---|---|
+| Random (today) | 12% | 13% |
+| Biggest baskets | 21% | 26% |
+| Rule of thumb (red-flag points) | 33% | 34% |
+| Best single signal (deletions) | 48% | 42% |
+| **Risk model** | **51%** | **52%** |
+| Ceiling: same features, trained on hidden truth | 82% | 67% |
+
+| Finding | Implication |
+|---|---|
+| About 4x today's random selection at the same rescan rate | Who gets rescanned is where the gain is |
+| A 5–20% random full floor adds only 2–5 points; the ceiling is trained on *why* items were missing | The bottleneck is label quality (a rescan records *that* items were missing, not why), more than label count |
+| **The first fairness check failed:** handset users, evening shoppers and new SmartShop users were flagged far more, though none of these changes behaviour. With so few labels the model learned spurious channel and time effects, and tenure features made newcomers look unusual | Channel, time of day and tenure removed from scoring; missing history filled with typical values. All three now pass (honest-stop ratios 0.97–0.99) |
+| Honest households with bigger baskets are still stopped more: honest-stop ratios 0.40 (age), 0.59 (household size), 0.32 (income), with wide intervals (some groups have very few households) | A review item, not proof. Carried into the policy (a per-member cap on rescans, week 6) and the full check (week 10) |
+
+Full analysis: [`notebooks/04_risk_model.ipynb`](notebooks/04_risk_model.ipynb).
+
 ## Ground rules
 
-- **No demographics or protected characteristics** in any model; they are used only for the fairness check. Proxies such as store location are checked too.
+- **No demographics or protected characteristics** in any model; they are used only for the fairness check. Channel, time of day and tenure are not scored either (they caused unfair flags in week 5), and proxies are checked.
 - **Stopping an honest shopper is a cost** in the objective, not only £ recovered.
 - **No history is not a reason to rescan more:** new SmartShop users get the standard rate.
 - **A colleague makes the final call.** Every decision comes with a plain-English reason and the items to check.
@@ -155,7 +182,7 @@ The gain is deliberately reported as modest: genuine mistakes fall roughly at ra
 | 2 ✅ | dbt warehouse: session, scan-line (normal and Nectar price) and point-in-time shopper-history models, with tests |
 | 3 ✅ | Session simulator: honest, careless, opportunist, deliberate and adaptive shoppers, calibrated to published ECR figures |
 | 4 ✅ | Basket model: which items are probably in the basket but unscanned |
-| 5 | Session risk model against three baselines: random, simple rules, top-k |
+| 5 ✅ | Session risk model against three baselines: random, simple rules, top-k |
 | 6 | Game-theory rescan policy |
 | 7 | Targeted rescans and Nectar trust score |
 | 8 | True loss from biased rescans (IPW) and the headline comparison |
@@ -175,13 +202,14 @@ make ingest                 # CSV -> typed Parquet + DuckDB warehouse (~3 s)
 make dbt                    # build and test the staging and mart models (~15 s)
 make simulate               # SmartShop sessions, scan events and today's rescans (~10 s)
 make basket                 # train the masked-basket model (~1.5 min)
+make risk                   # session risk model (first run scores the basket gap, ~5 min)
 make eda                    # run the EDA notebook and export HTML
 make test                   # unit, leakage and data-quality tests
 make dbt-docs               # browse model documentation and lineage
 make sample                 # no data? build a synthetic warehouse with the same schema
 ```
 
-On Windows without `make`: `python -m smartshop.ingest.load_raw`, then `cd dbt; dbt build --profiles-dir .; cd ..`, then `python -m smartshop.simulate.simulator`, then `python -m smartshop.basket.model`, then `pytest -q`. Use Python 3.12, as for Nectar.
+On Windows without `make`: `python -m smartshop.ingest.load_raw`, then `cd dbt; dbt build --profiles-dir .; cd ..`, then `python -m smartshop.simulate.simulator`, then `python -m smartshop.basket.model`, then `python -m smartshop.risk.model`, then `pytest -q`. Use Python 3.12, as for Nectar.
 
 ## Repository layout
 
@@ -192,11 +220,12 @@ On Windows without `make`: `python -m smartshop.ingest.load_raw`, then `cd dbt; 
 │   ├── ingest/sample.py     # synthetic warehouse with the real schema (CI, demos)
 │   ├── simulate/            # SimConfig (sources), simulator, rescan model, calibration
 │   ├── basket/              # observed history, masked-basket features, LightGBM model, fair evaluation
+│   ├── risk/                # observable risk features, honest selection, evaluation, fairness
 │   ├── warehouse.py         # connect to DuckDB, run dbt from Python
 │   └── viz.py               # chart style shared with Nectar
 ├── dbt/                     # seeds, staging, marts, 47 data tests
-├── notebooks/               # 01 EDA · 02 simulator validation · 03 basket model
-├── models/                  # basket_metrics.json (+ basket_model.joblib, generated by make basket)
+├── notebooks/               # 01 EDA · 02 simulator validation · 03 basket model · 04 risk model
+├── models/                  # basket and risk metrics (+ model files, generated by make basket / make risk)
 ├── reports/                 # HTML export + figures
 ├── tests/                   # marts on synthetic data, point-in-time leakage, data-quality contract
 └── .github/workflows/ci.yml # ruff + dbt parse + pytest (full dbt build on synthetic data)
