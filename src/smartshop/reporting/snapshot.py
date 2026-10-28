@@ -60,8 +60,9 @@ def _weekly(g, real_runs, today_fn) -> pd.DataFrame:
 
 
 def build() -> dict:
-    from smartshop.basket.data import TEST_DAYS, prepare
+    from smartshop.basket.data import TEST_DAYS, TRAIN_DAYS, prepare
     from smartshop.policy.game import build_game, outcome
+    from smartshop.policy.neutral import SizeNeutraliser, neutralised_game
     from smartshop.policy.search import POLICY_PATH
     from smartshop.policy.trust import RECOMMENDED_TRUST, history_events, run_cycles
     from smartshop.risk.model import MODEL_PATH, load_features
@@ -74,6 +75,24 @@ def build() -> dict:
     params = json.loads(POLICY_PATH.read_text())["recommended"]
     g = build_game(con, feats, bundle["model"], bundle["features"], TEST_DAYS)
     events = history_events(con, TEST_DAYS[0])
+    strength = params.get("size_neutral_strength", 0.0)
+    version = "1.1" if strength else "1.0"
+    # file names: the week 10 record (v1.0) keeps its names; v1.1 outputs get a suffix
+    suffix = "_v1_1" if strength else ""
+    v10 = None
+    if strength:
+        # v1.0 for comparison, then v1.1: size bands fitted on the tuning period
+        v10 = pd.DataFrame(
+            [
+                run_cycles(g, events, params, RECOMMENDED_TRUST, seed=s)[0].sum(numeric_only=True)
+                for s in range(N_RUNS)
+            ]
+        ).mean()
+        g_tune = build_game(con, feats, bundle["model"], bundle["features"], TRAIN_DAYS)
+        neutral = SizeNeutraliser.fit(
+            g_tune.sessions.v0_score.to_numpy(), g_tune.sessions.v0_scanned_units.to_numpy()
+        )
+        g = neutralised_game(g, neutral, strength)
     cfg = g.cfg
     today_rate = cfg.status_quo_full_rate + cfg.status_quo_partial_rate
     today = outcome(g, None, today=True)
@@ -104,8 +123,8 @@ def build() -> dict:
     )
     fair = fairness_table(per_session, today_rate)
     groups = group_rates(per_session, today_rate)
-    fair.to_csv(ROOT / "models" / "fairness.csv")
-    groups.to_csv(ROOT / "models" / "fairness_groups.csv", index=False)
+    fair.to_csv(ROOT / "models" / f"fairness{suffix}.csv")
+    groups.to_csv(ROOT / "models" / f"fairness_groups{suffix}.csv", index=False)
 
     # ---- measurement over the same runs ----
     est = pd.DataFrame(est_rows)
@@ -127,7 +146,7 @@ def build() -> dict:
 
     # ---- trial sizing: both arms measured from their random full rescans (2% floor) ----
     sizing = sizing_table(EFFECT, floor_error, len(g))
-    sizing.to_csv(ROOT / "models" / "trial_sizing.csv")
+    sizing.to_csv(ROOT / "models" / f"trial_sizing{suffix}.csv")
 
     # ---- operations: rescans by hour of day ----
     hours = attrs.set_index("basket_id").hour_of_day
@@ -203,7 +222,17 @@ def build() -> dict:
             "stores": int(stores),
             "runs": N_RUNS,
         },
-        "policy": params,
+        "policy": {k: v for k, v in params.items() if k != "size_neutral"},
+        "policy_version": version,
+        "v1_0": None
+        if v10 is None
+        else {
+            k: float(v10[k])
+            for k in ["loss_remaining", "recovered", "honest_stops", "colleague_hours"]
+        },
+        "mitigation": pd.read_csv(ROOT / "models" / "fairness_mitigation.csv").to_dict("records")
+        if (ROOT / "models" / "fairness_mitigation.csv").exists()
+        else None,
         "trust_rule": json.loads(POLICY_PATH.read_text()).get("trust_rule"),
         "headline": {
             "today": {

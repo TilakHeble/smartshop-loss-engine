@@ -111,6 +111,17 @@ with tabs[0]:
         f"{rec['honest_stops'] / today['honest_stops'] - 1:.0%} vs today",
         delta_color="inverse",
     )
+    v10 = d.get("v1_0")
+    if v10:
+        st.info(
+            f"**Policy v{d['policy_version']}.** Risk is compared with sessions of a similar "
+            "basket size before it sets the rescan chance. Against v1.0 (week 8): loss "
+            f"remaining {money(v10['loss_remaining'], md=True)} → "
+            f"{money(rec['loss_remaining'], md=True)}, recovered "
+            f"{money(v10['recovered'], md=True)} → {money(rec['recovered'], md=True)}, "
+            f"honest shoppers stopped {v10['honest_stops']:,.0f} → {rec['honest_stops']:,.0f}. "
+            "It also narrows the age gap found in the week 10 fairness check (Fairness tab)."
+        )
     st.caption(
         f"Today: 10% partial and 2% full rescans at random. Recommended: full rescans with "
         f"probability from {pol['floor']:.0%} (random floor) to {pol['cap']:.0%} by session "
@@ -200,7 +211,9 @@ with tabs[1]:
     st.subheader("How a session's risk becomes a rescan probability")
     st.write(
         "The rescan probability rises smoothly with the risk score from the random floor to "
-        "the cap. Regulars whose recent full rescans were clean get a trust discount (25% per "
+        "the cap. The score is first compared with sessions of a similar basket size, because "
+        "big baskets almost always hold an honest slip and are the slowest to rescan. "
+        "Regulars whose recent full rescans were clean get a trust discount (25% per "
         "clean rescan, up to 75%), but never below the floor. Every decision is a random draw "
         "against this probability, so no shopper can learn a safe pattern."
     )
@@ -212,7 +225,7 @@ with tabs[1]:
             alt.Chart(curve)
             .mark_line()
             .encode(
-                x=alt.X("score:Q", title="Risk score (chance a rescan finds something)"),
+                x=alt.X("score:Q", title="Size-adjusted risk score"),
                 y=alt.Y("p:Q", axis=alt.Axis(format="%"), title="Full-rescan probability"),
                 color=alt.Color(
                     "trust:N",
@@ -228,7 +241,7 @@ with tabs[1]:
         )
     with right:
         st.markdown("**Try one exit decision**")
-        score = st.slider("Risk score", 0.01, 0.99, 0.7, 0.01)
+        score = st.slider("Size-adjusted risk score", 0.01, 0.99, 0.7, 0.01)
         clean = st.select_slider("Recent clean full rescans", options=[0, 1, 2, 3], value=0)
         mult = 1 - 0.25 * clean
         p = max(pol["floor"], smooth(score, pol["t"], pol["floor"], pol["cap"], pol["tau"]) * mult)
@@ -335,11 +348,53 @@ with tabs[3]:
         ),
         width="stretch",
     )
-    st.caption(
-        "Age is the open review item: younger family households buy bigger baskets and are "
-        "stopped about 1.6x as often as the oldest when honest (basket size explains part). "
-        "Every group is still stopped at under half today's rate."
-    )
+    mit = d.get("mitigation")
+    if mit:
+        st.markdown("**The fix for the week 10 age gap: compare like with like**")
+        st.write(
+            "Raw risk scores favour big baskets, which younger family households buy. Comparing "
+            "each session only with sessions of a similar size closes the gap, and also catches "
+            "more: rescans move from slow big baskets full of honest slips to sessions that look "
+            "unusual for their size. Strength was chosen on the tuning period (0.5); this is the "
+            "test period."
+        )
+        mt = pd.DataFrame(mit)
+        mt = mt[
+            [
+                "strength",
+                "loss reduction vs today",
+                "recovery multiple",
+                "honest stops",
+                "age group: four-fifths ratio",
+                "age group: verdict",
+                "new SmartShop user (<5 sessions): four-fifths ratio",
+            ]
+        ].rename(
+            columns={
+                "strength": "size-neutral strength",
+                "age group: four-fifths ratio": "age ratio",
+                "age group: verdict": "age verdict",
+                "new SmartShop user (<5 sessions): four-fifths ratio": "new-user ratio",
+            }
+        )
+        st.dataframe(
+            mt.style.format(
+                {
+                    "loss reduction vs today": "{:.1%}",
+                    "recovery multiple": "{:.1f}x",
+                    "honest stops": "{:,.0f}",
+                    "age ratio": "{:.2f}",
+                    "new-user ratio": "{:.2f}",
+                }
+            ),
+            hide_index=True,
+            width="stretch",
+        )
+        st.caption(
+            "Strength 1 closes the age gap fully but stops more honest shoppers and pushes new "
+            "users to the edge of the four-fifths rule (0.80); 0.5 balances the three. Every "
+            "group is still stopped far less than today."
+        )
 
 # ------------------------------------------------------------------ Measurement & trial
 with tabs[4]:
@@ -382,29 +437,35 @@ with tabs[4]:
 # ------------------------------------------------------------------ Robustness
 with tabs[5]:
     st.subheader("Does the conclusion survive if the simulator is wrong?")
-    s = pd.DataFrame(d["sensitivity"]).sort_values("loss reduction")
+    s = pd.DataFrame(d["sensitivity"])
+    has_v11 = "v1.1: loss reduction" in s
+    sort_col = "v1.1: loss reduction" if has_v11 else "loss reduction"
+    order = list(s.sort_values(sort_col).scenario)
+    parts = [s.assign(policy="v1.0", reduction=s["loss reduction"])]
+    if has_v11:
+        parts.append(s.assign(policy="v1.1", reduction=s["v1.1: loss reduction"]))
+    sl = pd.concat(parts)
     st.altair_chart(
-        alt.Chart(s)
+        alt.Chart(sl)
         .mark_bar()
         .encode(
-            y=alt.Y("scenario:N", sort=None, title=None),
-            x=alt.X("loss reduction:Q", axis=alt.Axis(format="%"), title="Loss reduction vs today"),
-            color=alt.condition(
-                alt.datum.scenario == "Base assumptions", alt.value(BLUE), alt.value(GREY)
+            y=alt.Y("scenario:N", sort=order, title=None, axis=alt.Axis(labelLimit=360)),
+            x=alt.X("reduction:Q", axis=alt.Axis(format="%"), title="Loss reduction vs today"),
+            color=alt.Color(
+                "policy:N", scale=alt.Scale(domain=["v1.0", "v1.1"], range=[GREY, BLUE])
             ),
-            tooltip=[
-                "scenario",
-                alt.Tooltip("loss reduction:Q", format=".1%"),
-                alt.Tooltip("recovery multiple:Q", format=".1f"),
-                alt.Tooltip("honest stops reduction:Q", format=".0%"),
-            ],
+            yOffset="policy:N",
+            tooltip=["scenario", "policy", alt.Tooltip("reduction:Q", format=".1%")],
         )
-        .properties(height=360),
+        .properties(height=520),
         width="stretch",
     )
     st.caption(
         "Each scenario changes one assumption and reruns everything: simulate, retrain the risk "
-        "model, refit the policy, compare at today's colleague time."
+        "model, refit the policy, compare at today's colleague time (single-cycle evaluation, "
+        "without trust). Barcode switching is a theft method the model was not designed "
+        "around: it scans a cheap item's barcode for an expensive one, so the count, pace and "
+        "deletions look normal. 'Not retrained' uses the base world's model and policy."
     )
 
 # ------------------------------------------------------------------ Model health

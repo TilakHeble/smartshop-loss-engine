@@ -98,6 +98,15 @@ class SimConfig:
     intent_delete_rate: float = 0.025
     late_departments: tuple = ("MEAT", "SEAFOOD", "DELI", "MEAT-PCKGD")  # picked near the end
 
+    # --- Barcode switching (off in the base world; a stress test of an unseen method) -----
+    # A share of deliberate skips done instead by scanning a cheap item's barcode for the real
+    # item (a "ticket switch"). Nothing about the session looks unusual: the count of scans
+    # matches the basket, so pace is normal, and nothing is deleted. The loss is the price
+    # difference. The item is in the bags, so even a partial check can spot it if picked.
+    # The risk model was designed before this was added.
+    switch_share: float = 0.0
+    switch_price_quantile: float = 0.15  # substitutes come from the cheapest 15% of products
+
     # --- Today's rescans (the historical policy) ------------------------------------------
     # [ECR18] ~12% of users audited (2-17%); partial rescans dominate [ECR22]. Split assumed.
     status_quo_partial_rate: float = 0.10

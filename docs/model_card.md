@@ -6,7 +6,7 @@
 | **Decides** | At the SmartShop exit: full rescan or not. It returns the probability used, the random draw, plain-English reasons and the shopper's usual high-risk items that are missing ("look here first") |
 | **Risk model** | Logistic regression on 25 observable features: the session's scan log (pauses, pace, deletions, what was scanned) and the member's history from earlier trips (usual basket, pace, deletions, earlier rescan outcomes). No demographics, channel, time of day or tenure |
 | **Labels** | What random full rescans found ("found anything"): the only unbiased label a store has. 1,934 at the latest cutoff (390 found something); 926 in the training period used for evaluation |
-| **Policy** | Full-rescan probability rises smoothly with the risk score from a **2% random floor** to a **50% cap**. Volume is recalibrated every week so expected colleague time equals today's |
+| **Policy (v1.1)** | The risk score is first made partly **size-neutral**: compared with sessions of a similar number of units scanned (strength 0.5, chosen on the tuning period). Full-rescan probability then rises smoothly from a **2% random floor** to a **50% cap**. Volume is recalibrated every week so expected colleague time equals today's |
 | **Trust** | Each clean full rescan takes 25% off a member's probability, up to 75%. A small slip (one item under \$10) doesn't reset it. Never below the floor |
 | **Selected by** | Repeated cross-validation of observable value capture on random full rescans. The hidden truth was used once, for final evaluation |
 | **Code** | `risk/`, `policy/`, `serving/`, `pipeline/weekly.py`, `reporting/` |
@@ -34,14 +34,16 @@
 
 **Policy (test period, today's colleague time, shoppers respond, trust over four cycles, mean of 10 runs):**
 
-| | Today | Recommended |
-|---|---|---|
-| Loss remaining | \$41,639 (2.07% of sales) | **\$36,767 (1.83%)** |
-| Value recovered by rescans | \$1,196 | **\$6,640** (5.6x) |
-| Recovered per colleague hour | \$11 | **\$59** |
-| Honest shoppers stopped | 5,428 | **1,683** (−69%) |
+| | Today | v1.0 (week 8) | **v1.1 (served)** |
+|---|---|---|---|
+| Loss remaining | \$41,639 (2.07% of sales) | \$36,767 (1.83%) | **\$33,430 (1.66%)** |
+| Value recovered by rescans | \$1,196 | \$6,640 (5.6x) | **\$8,513** (7.1x) |
+| Recovered per colleague hour | \$11 | \$59 | **\$75** |
+| Honest shoppers stopped | 5,428 | 1,683 (−69%) | **1,918** (−65%) |
 
-The served model leaves out the basket-gap feature, which would need the whole basket model at the till. Stress tests on that configuration give 11.4% less loss (against 11.7% with it). In ten stress tests, each changing one simulator assumption and retraining everything, loss is 6–13% lower, recovery 3.9–6.4x and honest stops 69–70% lower.
+The served model leaves out the basket-gap feature, which would need the whole basket model at the till; the stress tests use the same configuration. In fourteen stress tests, each changing one simulator assumption and retraining everything, v1.1 leaves 6–22% less loss than today, recovers 3.2–8.2x as much and stops 63–66% fewer honest shoppers, and beats v1.0 on loss in every one.
+
+**An unseen theft method.** Barcode switching (scanning a cheap item's barcode for an expensive one) leaves the count, pace and deletions normal, so the strongest scan-log signals vanish. With every thief switching and the model never retrained, v1.1 still leaves 5.7% less loss than today (8.5% if retrained) and 36% of deliberate loss sits in the top 12% of scores (random: 12%), because member history still points at it.
 
 ## Fairness
 
@@ -49,18 +51,20 @@ The served model leaves out the basket-gap feature, which would need the whole b
 
 | Attribute | Four-fifths ratio | Same basket sizes | Random groups would give | Most-stopped group vs today | Verdict |
 |---|---|---|---|---|---|
-| Channel (app / handset) | 0.96 | 0.98 | 0.97 | 32% | pass |
-| New SmartShop user | 0.98 | 0.92 | 0.97 | 32% | pass |
-| Evening peak | 1.00 | 0.99 | 0.97 | 31% | pass |
-| Age group | 0.61 | 0.76 | 0.80 (p = 0.01) | 38% | **review** |
-| Household size | 0.64 | 0.81 | 0.84 | 45% | explained by basket size |
-| Income level | 0.60 | 0.76 | 0.61 (p = 0.42) | 42% | within chance |
+| Channel (app / handset) | 0.98 | 0.99 | 0.98 | 36% | pass |
+| New SmartShop user | 0.88 | 0.84 | 0.97 | 40% | pass |
+| Evening peak | 0.99 | 0.98 | 0.98 | 36% | pass |
+| Age group | 0.69 | 0.78 | 0.82 (p = 0.05) | 42% | on the edge of chance: monitor |
+| Household size | 0.72 | 0.81 | 0.85 | 46% | explained by basket size |
+| Income level | 0.72 | 0.80 | 0.64 (p = 0.78) | 45% | explained by basket size |
 
-- **No group is worse off than today:** the most-stopped group in every attribute is stopped at 31–45% of today's rate.
+Policy v1.1, as served. Under v1.0 (week 10) the ratios were 0.96 / 0.98 / 1.00 / **0.61 (age, p = 0.01: review)** / 0.64 / 0.60.
+
+- **No group is worse off than today:** the most-stopped group in every attribute is stopped at 36–46% of today's rate.
 - **The permutation test matters.** With 11 income groups of as few as 11 households, random groups give a ratio of 0.61, so the raw 0.60 is not evidence of unfairness.
-- **Age is the open item.** Younger family households (age groups 2–3) are stopped about 1.6x as often as the oldest when honest. They buy the largest baskets, and the model's basket-level features (expected missing value, basket value, product count) explain part of the gap. Age is a protected characteristic under the Equality Act 2010. A rule that puts one age group at a particular disadvantage needs to be a proportionate means of a legitimate aim. That is a business and legal judgement, and before any rollout it should be made explicitly and recorded:
-  1. measure the gap in the store trial with Nectar's consented demographic data (aggregated);
-  2. if it is not acceptable, normalise risk scores within basket-size bands (cost to detection to be measured), or set group-aware caps;
+- **The age gap, and the fix.** Under v1.0, younger family households (age groups 2–3) were stopped about 1.6x as often as the oldest when honest, because they buy the largest baskets and big baskets score high. v1.1 compares each session with sessions of a similar size, which narrows the gap (0.61 → 0.69) and also cuts loss further, because big baskets are slow to rescan and mostly hold honest slips. Full strength closes it (0.90) but stops 35% more honest shoppers than v1.1 and takes new users to 0.80. Age is a protected characteristic under the Equality Act 2010, so a remaining gap needs to be a proportionate means of a legitimate aim. That is a business and legal judgement, to be made explicitly and recorded:
+  1. choose the strength knowingly (0.5 now; 1.0 if relative parity matters most);
+  2. measure the gap in the store trial with Nectar's consented demographic data (aggregated);
   3. re-run this check on every weekly bundle.
 - **Earlier failures, fixed.** The first model (week 5) flagged handset users, evening shoppers and new users far more, from spurious channel and time effects learned from few labels. Those features and tenure were removed from scoring, and missing history is filled with typical values. The weekly job blocks any bundle that rescans app or handset shoppers, or new users, more than 1.25x everyone else.
 
@@ -88,6 +92,7 @@ This is a design assessment for a portfolio project, not legal advice. A real de
 - **Label quality.** Rescans record that something was missing, not why. The model ranks "likely to have missing items", which mixes honest mistakes with theft (the 82% ceiling shows the cost).
 - **Static store capacity.** Colleague time is held constant per period; queue-aware capacity by hour is v2.
 - **Adaptive thieves.** Detection drives the result. If thieves adapt faster or harder than assumed, the random floor and cap are the levers (stress tests cover several such cases).
+- **New methods.** A method that leaves no trace in the scan log (tested: barcode switching) weakens the gain to a few per cent until retraining catches up; the random floor still measures it.
 
 ## Monitoring and maintenance
 

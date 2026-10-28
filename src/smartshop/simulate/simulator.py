@@ -119,6 +119,18 @@ def build_world(trips: pd.DataFrame, lines: pd.DataFrame, cfg: SimConfig) -> Wor
     s["duration_min"] = s.duration_min * s.member_id.map(
         members.set_index("member_id").gt_pace_mult
     )
+
+    # Barcode switching: a cheap substitute for every unit, drawn from its own stream so the
+    # base world is unchanged. Used only when cfg.switch_share > 0.
+    rng_s = np.random.default_rng(cfg.seed + 2000)
+    prices = (
+        lines[~lines.is_high_risk.astype(bool)].groupby("product_id").nectar_unit_price.median()
+    )
+    cheap = prices[prices <= prices.quantile(cfg.switch_price_quantile)].sort_index()
+    pick = rng_s.integers(0, len(cheap), m)
+    u["sub_product_id"] = cheap.index.to_numpy()[pick]
+    u["sub_price"] = cheap.to_numpy()[pick]
+    u["u_switch"] = rng_s.random(m)
     return World(members=members, sessions=s, units=u)
 
 
@@ -162,6 +174,11 @@ def simulate_behaviour(
     )
     p_skip = np.minimum(cfg.skip_cap, base * price_f * risk_f) * u.basket_id.map(scale).to_numpy()
     would_skip = u.u_skip.to_numpy() < p_skip
+    # A switched unit is still taken, but the shopper pays the substitute's price.
+    switch = (u.u_switch.to_numpy() < cfg.switch_share) & (
+        u.sub_price.to_numpy() < u.unit_price.to_numpy()
+    )
+    loss_price = np.where(switch, u.unit_price - u.sub_price, u.unit_price)
 
     # Session intent.
     q = s.rescan_prob.to_numpy()
@@ -171,9 +188,7 @@ def simulate_behaviour(
     )
     intent = s.u_intent.to_numpy() < p_intent
     # Adaptive shoppers: steal only if the planned haul is worth the expected cost.
-    planned = (
-        pd.Series(np.where(would_skip, u.unit_price, 0.0)).groupby(u.basket_id.to_numpy()).sum()
-    )
+    planned = pd.Series(np.where(would_skip, loss_price, 0.0)).groupby(u.basket_id.to_numpy()).sum()
     v = s.basket_id.map(planned).fillna(0.0).to_numpy()
     d = cfg.adaptive_perceived_detection
     worth_it = v * (1 - q * d) > q * d * cfg.adaptive_penalty
@@ -200,11 +215,14 @@ def simulate_behaviour(
     u["gt_accidental"] = accidental
     u["gt_nonscan"] = nonscan
     u["gt_overscan"] = overscan
+    u["gt_switched"] = deliberate & switch
+    # What the store loses on a missed unit: its price, or the price difference if switched.
+    u["loss_price"] = np.where(u.gt_switched, loss_price, u.unit_price)
     return s, u
 
 
 def session_truth(s: pd.DataFrame, u: pd.DataFrame) -> pd.DataFrame:
-    price = u.unit_price
+    price = u.loss_price  # the unit price, or the price difference for a switched barcode
     agg = (
         u.assign(
             nonscan_value=np.where(u.gt_nonscan, price, 0.0),
@@ -216,6 +234,7 @@ def session_truth(s: pd.DataFrame, u: pd.DataFrame) -> pd.DataFrame:
         .agg(
             gt_true_units=("unit_price", "size"),
             gt_true_value=("unit_price", "sum"),
+            gt_switched_units=("gt_switched", "sum"),
             gt_nonscan_units=("gt_nonscan", "sum"),
             gt_deliberate_units=("gt_deliberate", "sum"),
             gt_accidental_units=("gt_accidental", "sum"),
@@ -259,8 +278,22 @@ def scan_events(s: pd.DataFrame, u: pd.DataFrame, cfg: SimConfig) -> pd.DataFram
     # double scans (over-scans): a second scan 2-4 seconds later
     over = u[u.gt_overscan]
     ev.append(over[base_cols].assign(t=over.t + 2 + 2 * over.u_time, action="scan"))
-    # deliberate skips done as scan-then-delete
-    sd = u[u.gt_deliberate & (u.u_delete < cfg.scan_then_delete_share)]
+    # barcode switches: the substitute's barcode is scanned at the real item's moment
+    sw = u[u.gt_switched]
+    ev.append(
+        pd.DataFrame(
+            {
+                "basket_id": sw.basket_id,
+                "product_id": sw.sub_product_id,
+                "unit_price": sw.sub_price,
+                "is_high_risk": False,
+                "t": sw.t,
+                "action": "scan",
+            }
+        )
+    )
+    # deliberate skips done as scan-then-delete (not switches: those leave no trace)
+    sd = u[u.gt_deliberate & ~u.gt_switched & (u.u_delete < cfg.scan_then_delete_share)]
     ev.append(sd[base_cols + ["t"]].assign(action="scan"))
     ev.append(sd[base_cols].assign(t=sd.t + 3 + 5 * sd.u_time, action="delete"))
     # ordinary deletes on scanned units (mistake or changed mind): scan, delete, scan again
@@ -341,6 +374,8 @@ def simulate(con: duckdb.DuckDBPyConnection, cfg: SimConfig | None = None) -> di
                 "gt_accidental",
                 "gt_nonscan",
                 "gt_overscan",
+                "gt_switched",
+                "loss_price",
             ]
         ],
     }

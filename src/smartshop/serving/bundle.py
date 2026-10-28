@@ -17,6 +17,7 @@ Build it:
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import logging
 import secrets
@@ -33,6 +34,7 @@ import pandas as pd
 
 from smartshop.config import ROOT, WAREHOUSE_PATH
 from smartshop.monitoring.drift import profile
+from smartshop.policy.neutral import SizeNeutraliser
 from smartshop.serving.features import feature_row, session_features
 
 log = logging.getLogger(__name__)
@@ -97,8 +99,21 @@ class Bundle:
     def features(self) -> list[str]:
         return self.manifest["features"]
 
+    @functools.cached_property
+    def neutraliser(self) -> SizeNeutraliser | None:
+        d = self.manifest["policy"].get("size_neutral")
+        return SizeNeutraliser.from_dict(d) if d else None
+
     # ---------- decisions ----------
+    def adjusted(self, score: float, scanned_units: float) -> float:
+        """v1.1: the score compared with sessions of a similar size (unchanged in v1.0 bundles)."""
+        strength = self.manifest["policy"].get("size_neutral_strength", 0.0)
+        if self.neutraliser is None or not strength:
+            return float(score)
+        return float(self.neutraliser(score, scanned_units, strength)[0])
+
     def probability(self, score: float, trust_mult: float) -> float:
+        """Rescan probability from the (size-adjusted) score and the member's trust."""
         p = self.manifest["policy"]
         base = smooth_probability(score, p["t"], p["floor"], p["cap"], p["tau"])
         return float(max(p["floor"], base * trust_mult))
@@ -128,8 +143,9 @@ class Bundle:
         prof = self.profiles.loc[member_id].to_dict() if member_id in self.profiles.index else None
         X = feature_row(sess, prof, day=day or self.manifest["cutoff_day"] + 1)
         score = float(self.model.predict_proba(X[self.features])[:, 1][0])
+        adjusted = self.adjusted(score, sess["scanned_units"])
         trust = float(prof["trust_mult"]) if prof else 1.0
-        p = self.probability(score, trust)
+        p = self.probability(adjusted, trust)
         u = float(draw) if draw is not None else secrets.randbelow(10**9) / 10**9
         floor = self.manifest["policy"]["floor"]
         rescan = u < p
@@ -143,6 +159,7 @@ class Bundle:
             "draw": round(u, 6),
             "audit_sample": bool(u < floor),
             "risk_score": round(score, 4),
+            "size_adjusted_score": round(adjusted, 4),
             "reasons": self.reasons(X) if rescan else [],
             "look_here_first": look[:3] if rescan else [],
             "trust_multiplier": round(trust, 3),
@@ -264,7 +281,17 @@ def build_bundle(
     # Rescan volume: today's colleague time per session, on the latest cycle's sessions.
     pol = dict(policy or json.loads(POLICY_PATH.read_text())["recommended"])
     recent = feats[feats.day > cutoff - RECENT_DAYS]
-    score = model.predict_proba(recent[cols])[:, 1]
+    raw = model.predict_proba(recent[cols])[:, 1]
+    score = raw
+    strength = pol.get("size_neutral_strength", 0.0)
+    if strength:
+        # v1.1 size bands from the last year's sessions before this cycle (quantiles only)
+        year = feats[(feats.day > cutoff - 365) & (feats.day <= cutoff - RECENT_DAYS)]
+        neutral = SizeNeutraliser.fit(
+            model.predict_proba(year[cols])[:, 1], year.scanned_units.clip(lower=0)
+        )
+        pol["size_neutral"] = neutral.to_dict()
+        score = neutral(raw, recent.scanned_units.clip(lower=0).to_numpy(), strength)
     mult = recent.member_id.map(prof.trust_mult).fillna(1.0).to_numpy()
     units = recent.scanned_units.clip(lower=0).to_numpy()
     budget = (0.10 * (45 + 6 * np.minimum(3, units)) + 0.02 * (45 + 4 * units)).sum()
@@ -281,7 +308,7 @@ def build_bundle(
         pol["floor"], smooth_probability(score, hi, pol["floor"], pol["cap"], pol["tau"]) * mult
     )
 
-    recent = recent.assign(risk_score=score, p=p, cost_s=cost)
+    recent = recent.assign(risk_score=raw, size_adjusted_score=score, p=p, cost_s=cost)
 
     # Drift reference: the latest cycle, i.e. what this bundle was calibrated on. Not the whole
     # training history: member-history features mature over time, so early sessions (little or

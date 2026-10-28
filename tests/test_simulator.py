@@ -130,3 +130,39 @@ def test_calibration_on_real_data():
     assert 0.0096 <= cal["Net loss, share of sales"] <= 0.0468
     assert cal["Rescan rate"] == pytest.approx(0.12, abs=0.01)
     assert cal["Partial rescans finding an error"] == pytest.approx(0.0288, abs=0.015)
+
+
+def test_barcode_switching_leaves_the_count_intact_and_costs_the_price_gap(sample_con):
+    """The unseen-method stress test: a switch is scanned (as something cheap), not skipped."""
+    t = simulate(
+        sample_con,
+        SimConfig(
+            seed=1,
+            switch_share=1.0,
+            skip_base={"opportunist": 0.5, "deliberate": 0.6, "adaptive": 0.6},
+        ),
+    )
+    truth = t["sim_truth.sessions"].set_index("basket_id")
+    units = t["sim_truth.units"]
+    sw = units[units.gt_switched]
+    assert len(sw) > 0
+    # every switch is deliberate, and the store loses the price difference, not the price
+    assert sw.gt_deliberate.all()
+    assert np.allclose(sw.loss_price, sw.unit_price - (sw.unit_price - sw.loss_price))
+    assert (sw.loss_price < sw.unit_price).all() and (sw.loss_price > 0).all()
+    # the scan log still has one scan per switched unit: no gap in the count gives it away
+    ev = t["sim_obs.scan_events"]
+    net = ev.assign(n=np.where(ev.action == "scan", 1, -1)).groupby("basket_id").n.sum()
+    expected = (
+        truth.gt_true_units
+        - truth.gt_nonscan_units
+        + truth.gt_overscan_units
+        + truth.gt_switched_units
+    )
+    assert (net.reindex(truth.index, fill_value=0) == expected).all()
+
+
+def test_switching_off_changes_nothing(sample_con, tables):
+    again = simulate(sample_con, SimConfig(seed=1, switch_share=0.0))
+    for name in tables:
+        pd.testing.assert_frame_equal(tables[name], again[name])

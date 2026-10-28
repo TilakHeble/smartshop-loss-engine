@@ -18,7 +18,8 @@ NONE, PARTIAL, FULL = "none", "partial", "full"
 def rescan_outcomes(basket_ids: np.ndarray, decisions: np.ndarray, units: pd.DataFrame, cfg):
     """Rescan results for the sessions that were rescanned (observable: what was found).
 
-    units must carry basket_id, unit_price, gt_nonscan, gt_deliberate, gt_overscan, u_pick, u_det.
+    units must carry basket_id, unit_price, loss_price, gt_nonscan, gt_deliberate, gt_switched,
+    gt_overscan, u_pick, u_det.
     """
     dec = pd.Series(decisions, index=basket_ids, name="rescan_type")
     dec = dec[dec != NONE]
@@ -27,10 +28,12 @@ def rescan_outcomes(basket_ids: np.ndarray, decisions: np.ndarray, units: pd.Dat
     u["pick_rank"] = u.groupby("basket_id").u_pick.rank(method="first")
     full = u.rescan_type == FULL
     checked = full | (u.pick_rank <= cfg.partial_items)
+    # concealed = skipped on purpose and hidden; a switched barcode is in the bags
+    concealed = u.gt_deliberate & ~u.gt_switched
     p_ns = np.where(
         full,
         cfg.full_detect_nonscan,
-        np.where(u.gt_deliberate, cfg.partial_detect_deliberate, cfg.partial_detect_nonscan),
+        np.where(concealed, cfg.partial_detect_deliberate, cfg.partial_detect_nonscan),
     )
     u["found_missing"] = checked & u.gt_nonscan & (u.u_det < p_ns)
     u["found_over"] = full & u.gt_overscan & (u.u_det < cfg.full_detect_overscan)
@@ -38,7 +41,7 @@ def rescan_outcomes(basket_ids: np.ndarray, decisions: np.ndarray, units: pd.Dat
 
     out = (
         u.assign(
-            found_missing_value=np.where(u.found_missing, u.unit_price, 0.0),
+            found_missing_value=np.where(u.found_missing, u.loss_price, 0.0),
             found_over_value=np.where(u.found_over, u.unit_price, 0.0),
         )
         .groupby("basket_id")

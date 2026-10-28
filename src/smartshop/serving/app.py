@@ -66,6 +66,7 @@ class DecideResponse(BaseModel):
     draw: float
     audit_sample: bool
     risk_score: float
+    size_adjusted_score: float
     reasons: list[str]
     look_here_first: list[str]
     trust_multiplier: float
@@ -108,7 +109,7 @@ async def lifespan(_: FastAPI):
     yield
 
 
-app = FastAPI(title="SmartShop rescan decisions", version="0.9.0", lifespan=lifespan)
+app = FastAPI(title="SmartShop rescan decisions", version="1.1.0", lifespan=lifespan)
 
 
 @app.middleware("http")

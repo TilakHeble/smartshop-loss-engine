@@ -31,6 +31,7 @@ from smartshop.policy.game import (
     threshold_policy,
     today_hours,
 )
+from smartshop.policy.neutral import SIZE_NEUTRAL_STRENGTH
 from smartshop.policy.trust import RECOMMENDED_TRUST
 from smartshop.risk.model import MODEL_PATH as RISK_PATH
 from smartshop.risk.model import load_features
@@ -129,7 +130,11 @@ def main() -> None:
     _, g_test, fitted = solve(con, base, bundle["model"], bundle["features"])
     table = compare(g_test, fitted, hours=today_hours(g_test))
     log.info("\n%s", table.round(2).to_string())
-    rec = fitted["Randomised, cap 0.5 (recommended)"]
+    # v1.1: scores compared within basket-size bands (policy/neutral.py, chosen on tuning period)
+    rec = {
+        **fitted["Randomised, cap 0.5 (recommended)"],
+        "size_neutral_strength": SIZE_NEUTRAL_STRENGTH,
+    }
     trust = {
         **asdict(RECOMMENDED_TRUST),
         "note": "Each clean full rescan lowers a member's rescan chance by 25%, up to 75% off; "

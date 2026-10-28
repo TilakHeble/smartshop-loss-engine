@@ -1,4 +1,4 @@
-.PHONY: report dashboard install ingest dbt dbt-docs sample simulate basket risk policy stress bundle weekly demo-bundle serve docker smoke eda test lint clean
+.PHONY: all mitigation report dashboard install ingest dbt dbt-docs sample simulate basket risk policy stress bundle weekly demo-bundle serve docker smoke eda test lint clean
 
 RAW_DIR ?= data/raw
 
@@ -48,6 +48,12 @@ docker:
 smoke:
 	python -m smartshop.serving.smoke --url http://localhost:8000
 
+all:  # every step from the raw CSVs (same as python -m smartshop.run_all)
+	python -m smartshop.run_all
+
+mitigation:  # v1.1: size-neutral strength, chosen on the tuning period (~10 min)
+	python -m smartshop.reporting.mitigation
+
 report:  # fairness check, trial sizing and the dashboard snapshot (~4 min)
 	python -m smartshop.reporting.snapshot
 
@@ -67,6 +73,7 @@ eda:
 	jupyter nbconvert --to notebook --execute --inplace notebooks/06_trust_and_targeting.ipynb
 	jupyter nbconvert --to notebook --execute --inplace notebooks/07_headline_and_stress_tests.ipynb
 	jupyter nbconvert --to notebook --execute --inplace notebooks/08_fairness_and_trial.ipynb
+	jupyter nbconvert --to notebook --execute --inplace notebooks/09_unseen_theft_and_size_neutral.ipynb
 	jupyter nbconvert --to html notebooks/0*.ipynb --output-dir reports
 
 test:

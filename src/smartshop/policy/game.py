@@ -81,12 +81,12 @@ def _world_values(s, u, cfg) -> pd.DataFrame:
     """Loss, what each kind of rescan would find, and size, for one version of reality."""
     t = session_truth(s, u)
     detect_partial = np.where(
-        u.gt_deliberate, cfg.partial_detect_deliberate, cfg.partial_detect_nonscan
+        u.gt_deliberate & ~u.gt_switched, cfg.partial_detect_deliberate, cfg.partial_detect_nonscan
     )
     n = u.groupby("basket_id").basket_id.transform("size")
     pick = np.minimum(1.0, cfg.partial_items / n)
     part = (
-        u.assign(f=np.where(u.gt_nonscan, u.unit_price * pick * detect_partial, 0.0))
+        u.assign(f=np.where(u.gt_nonscan, u.loss_price * pick * detect_partial, 0.0))
         .groupby("basket_id")
         .f.sum()
     )
@@ -107,8 +107,8 @@ def _world_values(s, u, cfg) -> pd.DataFrame:
     )
 
 
-def _scores(con, s, u, cfg, base_features: pd.DataFrame, model, cols) -> pd.Series:
-    """Risk score of each session given one version of its scan log."""
+def _scores(con, s, u, cfg, base_features: pd.DataFrame, model, cols) -> pd.DataFrame:
+    """Risk score (and units scanned) of each session given one version of its scan log."""
     con.register("cf_sessions", observed_sessions(s))
     con.register("cf_events", scan_events(s, u, cfg))
     sess = con.sql(session_sql("cf_sessions", "cf_events")).df()
@@ -119,7 +119,13 @@ def _scores(con, s, u, cfg, base_features: pd.DataFrame, model, cols) -> pd.Seri
     # in the risk model is small, and re-scoring it per version would add minutes for little.
     df = derive(sess.merge(base_features[keep], on="basket_id", how="inner"))
     df[cols] = df[cols].astype("float32").replace([np.inf, -np.inf], np.nan)
-    return pd.Series(model.predict_proba(df[cols])[:, 1], index=df.basket_id.to_numpy())
+    return pd.DataFrame(
+        {
+            "score": model.predict_proba(df[cols])[:, 1],
+            "scanned_units": df.scanned_units.to_numpy(),
+        },
+        index=df.basket_id.to_numpy(),
+    )
 
 
 def build_game(
@@ -145,7 +151,7 @@ def build_game(
         sc = np.where(strategic, scale, 1.0)
         s, u = simulate_behaviour(world, cfg, rescan_prob=0.0, force_intent=f, skip_scale=sc)
         v = _world_values(s, u, cfg)
-        v["score"] = _scores(con, s, u, cfg, base_features, model, cols)
+        v = v.join(_scores(con, s, u, cfg, base_features, model, cols))
         v["intent"] = s.set_index("basket_id").gt_intent
         out = out.join(v.add_prefix(f"v{k}_"), how="inner")
     cols_score = [f"v{k}_score" for k in range(len(versions))]

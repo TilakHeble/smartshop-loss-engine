@@ -16,6 +16,7 @@ import numpy as np
 import pandas as pd
 
 from smartshop.monitoring.drift import profile
+from smartshop.policy.neutral import SizeNeutraliser
 from smartshop.policy.trust import RECOMMENDED_TRUST
 from smartshop.risk.model import FEATURE_SETS, candidates
 from smartshop.serving.bundle import Bundle
@@ -59,7 +60,17 @@ def demo_bundle(seed: int = 0, n: int = 2000) -> Bundle:
         "cutoff_day": 711,
         "features": cols,
         "training_labels": {"random_full_rescans": n, "found_anything": int(y.sum())},
-        "policy": {"kind": "smooth", "floor": 0.02, "cap": 0.5, "tau": 0.05, "t": 0.0},
+        "policy": {
+            "kind": "smooth",
+            "floor": 0.02,
+            "cap": 0.5,
+            "tau": 0.05,
+            "t": 0.0,
+            "size_neutral_strength": 0.5,
+            "size_neutral": SizeNeutraliser.fit(
+                model.predict_proba(X)[:, 1], np.abs(X["scanned_units"].to_numpy()) * 10
+            ).to_dict(),
+        },
         "trust_rule": asdict(RECOMMENDED_TRUST),
         "budget": {
             "colleague_seconds_per_session": 0.0,

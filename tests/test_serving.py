@@ -241,3 +241,24 @@ def test_release_gates_block_a_bad_bundle():
     # a small group is reported, not gated
     tiny = pd.Series(np.r_[np.ones(10), np.zeros(990)].astype(bool))
     assert np.isnan(excess_rate(pd.Series(np.r_[np.ones(10), np.full(990, 0.1)]), tiny))
+
+
+def test_v11_bundle_uses_size_adjusted_scores_and_keeps_the_budget(sim_con, tmp_path):
+    from smartshop.serving.bundle import build_bundle
+
+    policy = {
+        "kind": "smooth",
+        "floor": 0.02,
+        "cap": 0.5,
+        "tau": 0.05,
+        "t": 0.0,
+        "size_neutral_strength": 0.5,
+    }
+    b = build_bundle(sim_con, policy=policy, min_baskets=3)
+    assert "size_neutral" in b.manifest["policy"]
+    used = (b.recent.p * b.recent.cost_s).mean()
+    assert used == pytest.approx(b.manifest["budget"]["colleague_seconds_per_session"], rel=0.01)
+    loaded = Bundle.load(b.save(tmp_path / "artifacts"))
+    out = loaded.decide(int(loaded.profiles.index[0]), 12.0, _events(), draw=0.5)
+    assert 0 <= out["size_adjusted_score"] <= 1
+    assert 0.02 <= out["rescan_probability"] <= 0.5

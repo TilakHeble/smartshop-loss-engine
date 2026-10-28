@@ -29,6 +29,7 @@ import pandas as pd
 from smartshop.basket.data import TEST_DAYS, TRAIN_DAYS, prepare
 from smartshop.config import ROOT, WAREHOUSE_PATH
 from smartshop.policy.game import build_game, outcome, responses, today_hours
+from smartshop.policy.neutral import SIZE_NEUTRAL_STRENGTH, SizeNeutraliser, neutralised_game
 from smartshop.policy.search import FLOOR, fit_family, make_policy, recalibrate
 from smartshop.risk.features import build
 from smartshop.risk.model import FEATURE_SETS, LABELS, TRAIN_LAST_DAY, candidates, observed_labels
@@ -63,7 +64,24 @@ def scenarios() -> dict[str, SimConfig]:
     }
 
 
-def run_scenario(name: str, cfg: SimConfig, workdir: Path) -> dict:
+def unseen_scenarios() -> dict[str, SimConfig]:
+    """A theft method the risk model was not designed around: barcode switching.
+
+    Each runs twice: retrained (the store keeps learning from random full rescans) and frozen
+    (model and policy shape from the base world, only rescan volume recalibrated, as the weekly
+    job does): a new method appearing after deployment.
+    """
+    return {
+        "Barcode switching: half of theft": replace(BASE, switch_share=0.5),
+        "Barcode switching: all theft": replace(BASE, switch_share=1.0),
+    }
+
+
+def run_scenario(
+    name: str, cfg: SimConfig, workdir: Path, frozen: dict | None = None, keep: dict | None = None
+) -> dict:
+    """One scenario. `frozen` = {"model", "params"} reuses a base-world model and policy shapes;
+    `keep` (a dict) receives this run's model and fitted shapes."""
     t0 = time.time()
     path = workdir / "scenario.duckdb"
     shutil.copy(WAREHOUSE_PATH, path)
@@ -76,14 +94,17 @@ def run_scenario(name: str, cfg: SimConfig, workdir: Path) -> dict:
     prepare(con)
     feats = build(con)
     cols = FEATURE_SETS["session+history"]
-    lab = feats[feats.day <= TRAIN_LAST_DAY].merge(observed_labels(con), on="basket_id")
-    model = candidates()["logistic"].fit(lab[cols], LABELS["found anything"](lab))
-    g_tune = build_game(con, feats, model, cols, TRAIN_DAYS, cfg=cfg)
+    if frozen:
+        model = frozen["model"]
+    else:
+        lab = feats[feats.day <= TRAIN_LAST_DAY].merge(observed_labels(con), on="basket_id")
+        model = candidates()["logistic"].fit(lab[cols], LABELS["found anything"](lab))
+    g_tune = None if frozen else build_game(con, feats, model, cols, TRAIN_DAYS, cfg=cfg)
     g_test = build_game(con, feats, model, cols, TEST_DAYS, cfg=cfg)
     con.close()
     path.unlink()
 
-    hours_tune = today_hours(g_tune)
+    hours_tune = None if frozen else today_hours(g_tune)
     hours_test = today_hours(g_test)
     today = outcome(g_test, None, today=True)
     out = {"scenario": name}
@@ -93,9 +114,23 @@ def run_scenario(name: str, cfg: SimConfig, workdir: Path) -> dict:
         "randomised, no cap": dict(kind="smooth", floor=FLOOR, cap=1.0),
     }
     res = {}
+    shapes = {}
     for k, fam in fams.items():
-        params = recalibrate(g_test, fit_family(g_tune, fam, hours_tune), hours_test)
+        shapes[k] = frozen["params"][k] if frozen else fit_family(g_tune, fam, hours_tune)
+        params = recalibrate(g_test, shapes[k], hours_test)
         res[k] = (params, outcome(g_test, make_policy(params)))
+    # v1.1: the same recommended shape on size-neutral scores (bands fitted on the tuning period,
+    # or on the base world when the model is not retrained)
+    if frozen:
+        neutral = frozen["neutral"]
+    else:
+        neutral = SizeNeutraliser.fit(
+            g_tune.sessions.v0_score.to_numpy(), g_tune.sessions.v0_scanned_units.to_numpy()
+        )
+    g_v11 = neutralised_game(g_test, neutral, SIZE_NEUTRAL_STRENGTH)
+    v11 = outcome(g_v11, make_policy(recalibrate(g_v11, shapes["recommended"], hours_test)))
+    if keep is not None:
+        keep.update(model=model, params=shapes, neutral=neutral)
     rec = res["recommended"][1]
     thr_params, thr = res["threshold"]
     # what a static evaluation (shoppers keep today's behaviour) would predict for the threshold
@@ -124,6 +159,18 @@ def run_scenario(name: str, cfg: SimConfig, workdir: Path) -> dict:
         }
     )
     out["today: loss before rescans"] = today["loss_before_rescans"]
+    out["model retrained"] = not frozen
+    out["v1.1: loss remaining"] = v11["loss_remaining"]
+    out["v1.1: loss reduction"] = 1 - v11["loss_remaining"] / today["loss_remaining"]
+    out["v1.1: recovery multiple"] = v11["recovered"] / today["recovered"]
+    out["v1.1: honest stops reduction"] = 1 - v11["honest_stops"] / today["honest_stops"]
+    # how much deliberate loss the top 12% of risk scores holds, when thieves take their usual
+    # haul (the last version of reality): does the ranking still point at theft?
+    k = len(g_test.levels)
+    score = g_test.sessions[f"v{k}_score"].to_numpy()
+    dv = g_test.sessions[f"v{k}_deliberate_value"].to_numpy()
+    top = score >= np.quantile(score, 0.88)
+    out["deliberate value in top 12% of scores"] = dv[top].sum() / max(dv.sum(), 1e-9)
     log.info(
         "%-45s loss -%.1f%%  x%.1f recovery  (%.1f min)",
         name,
@@ -137,15 +184,40 @@ def run_scenario(name: str, cfg: SimConfig, workdir: Path) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--only", nargs="*", help="scenario names to run (default: all)")
+    parser.add_argument(
+        "--unseen-only",
+        action="store_true",
+        help="run the base world and the barcode-switching tests only",
+    )
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(message)s")
-    rows = []
+    # keep rows from earlier runs; rerun scenarios replace their row
+    old = pd.read_csv(OUT) if OUT.exists() else pd.DataFrame(columns=["scenario"])
+    rows = {r["scenario"]: r for r in old.to_dict("records")}
+
+    def save():
+        pd.DataFrame(list(rows.values())).to_csv(OUT, index=False)
+
     with tempfile.TemporaryDirectory(dir=ROOT / "data" / "processed") as d:
+        base_fit: dict = {}
         for name, cfg in scenarios().items():
-            if args.only and name not in args.only:
+            if name != "Base assumptions" and (
+                args.unseen_only or (args.only and name not in args.only)
+            ):
                 continue
-            rows.append(run_scenario(name, cfg, Path(d)))
-            pd.DataFrame(rows).to_csv(OUT, index=False)
+            rows[name] = run_scenario(name, cfg, Path(d), keep=base_fit if cfg == BASE else None)
+            save()
+        if args.only and not args.unseen_only:
+            return
+        for name, cfg in unseen_scenarios().items():
+            rows[name + " (model retrained)"] = run_scenario(
+                name + " (model retrained)", cfg, Path(d)
+            )
+            save()
+            rows[name + " (model not retrained)"] = run_scenario(
+                name + " (model not retrained)", cfg, Path(d), frozen=base_fit
+            )
+            save()
     log.info("-> %s", OUT)
 
 

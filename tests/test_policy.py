@@ -176,3 +176,26 @@ def test_trust_cycles(game):
     # without trust every multiplier is 1
     _, real0 = run_cycles(g, ev, params, TrustRule(enabled=False), n_cycles=3, seed=0)
     assert (real0.trust_mult == 1).all()
+
+
+def test_size_neutral_scores_remove_the_basket_size_effect():
+    from smartshop.policy.neutral import SizeNeutraliser
+
+    rng = np.random.default_rng(0)
+    units = rng.integers(1, 80, 20_000).astype(float)
+    # bigger baskets score higher for everyone; within a size, some sessions are riskier
+    signal = rng.normal(size=len(units))
+    score = 1 / (1 + np.exp(-(-3 + 0.04 * units + signal)))
+    n = SizeNeutraliser.fit(score, units)
+    full = n(score, units, 1.0)
+    half = n(score, units, 0.5)
+    assert np.corrcoef(score, units)[0, 1] > 0.4
+    assert abs(np.corrcoef(full, units)[0, 1]) < 0.05  # size no longer drives the score
+    assert abs(np.corrcoef(half, units)[0, 1]) < np.corrcoef(score, units)[0, 1]
+    assert np.corrcoef(full, signal)[0, 1] > 0.9  # but the within-size signal is kept
+    assert np.allclose(n(score, units, 0.0), score)
+    # the overall distribution is kept, so the policy's shape and volume still apply
+    assert abs(np.median(full) - np.median(score)) < 0.02
+    # and it survives a round trip through the bundle manifest
+    again = SizeNeutraliser.from_dict(n.to_dict())
+    assert np.allclose(again(score[:100], units[:100]), n(score[:100], units[:100]))

@@ -2,15 +2,49 @@
 
 [![ci](https://github.com/TilakHeble/smartshop-loss-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/TilakHeble/smartshop-loss-engine/actions/workflows/ci.yml) [![Streamlit app](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://smartshop-loss-engine.streamlit.app/)
 
-**Which SmartShop sessions should be rescanned, and which items checked, so that each minute of colleague time recovers the most loss while honest shoppers are stopped as rarely as possible?**
+**Which SmartShop sessions should a colleague rescan, so that each minute of their time recovers the most loss while honest shoppers are stopped as rarely as possible?**
 
-SmartShop (scan-as-you-shop) loses money when items leave unscanned: some on purpose, usually high-value lines, and some by genuine mistake. Today partial and full rescans are mostly random. This project replaces them with **risk-based rescans that keep a small random floor**, so the policy can still be measured, can't be gamed, and gives colleagues a neutral explanation.
+SmartShop (scan-as-you-shop) loses money when items leave unscanned: some on purpose, many by genuine mistake. Today about 12% of sessions are rescanned at random. This project replaces random rescans with **risk-based rescans that keep a small random floor**, so the policy can still be measured, can't be gamed, and gives colleagues a neutral reason.
 
-It is the companion to the [Nectar Offer Engine](https://github.com/TilakHeble/nectar-offer-engine): the same members, the same data and shared code. Nectar decides each member's personalised prices; SmartShop is where the member sees them, Nectar price next to normal price, while scanning.
+**[Live dashboard](https://smartshop-loss-engine.streamlit.app/)** · **[Business case](docs/business_case.md)** (2 pages) · **[Model card](docs/model_card.md)** · **[Interview notes](docs/interview_notes.md)** · companion to the [Nectar Offer Engine](https://github.com/TilakHeble/nectar-offer-engine)
 
-> Status: **v1 complete (weeks 1–10).** Calibrated simulator, risk model, rescan game, trust, unbiased loss measurement, a decision API in Docker with a gated weekly job, a Streamlit dashboard, a full fairness check, a [model card](docs/model_card.md) with a data-protection assessment, and a [business case](docs/business_case.md) with a store-trial design. 47 dbt data tests and 77 Python tests run in CI on every push, which also builds the API image and smoke-tests the running container.
->
-> **Read first:** [business case](docs/business_case.md) (2 pages) · [model card](docs/model_card.md) · **[live dashboard](https://smartshop-loss-engine.streamlit.app/)**
+![Dashboard walkthrough](reports/figures/dashboard.gif)
+
+## The result
+
+Same colleague time as today; test period; shoppers who learn the policy and respond; trust updated over four cycles; mean of 10 runs. SmartShop behaviour is simulated on 2.35m real basket lines and calibrated to published loss research, so these figures show that the method recovers a known truth, not a forecast for Sainsbury's.
+
+| | Today (random rescans) | **Recommended policy (v1.1)** |
+|---|---|---|
+| Loss remaining | \$41,639 | **\$33,430 (−20%)** |
+| Value recovered by rescans | \$1,196 | **\$8,513 (7.1x)** |
+| Recovered per colleague hour | \$11 | **\$75** |
+| Honest shoppers stopped | 5,428 | **1,918 (−65%)** |
+
+- **It survives being wrong.** Fourteen stress tests each change one assumption and rerun everything. Loss is 6–22% lower in every one, including a theft method the model was never designed for: barcode switching, where the scan count, pace and deletions all look normal ([v1.1](#v11-an-unseen-theft-method-and-closing-the-age-gap)).
+- **It is checked for fairness properly.** Every group of honest shoppers is stopped at under half today's rate. A check that separates real gaps from small-group chance found an age gap; scoring each session against baskets of a similar size narrows it *and* catches more.
+- **Loss stays measurable.** Averaging what targeted rescans find overstates loss about 4x; weighting each rescan by its logged probability is unbiased to within about 1%.
+- **What didn't work is reported, not hidden:** targeted partial checks (full rescans recover more per colleague-minute) and in-app "did you forget?" prompts (usually wrong).
+
+## How it works
+
+```mermaid
+flowchart LR
+    A["Scan log<br/>pauses · pace · deletions"] --> R["Risk model<br/>logistic, 25 features"]
+    H["Nectar history<br/>usual basket · past rescans"] --> R
+    R --> S["Size-adjusted score<br/>vs similar-sized baskets"]
+    S --> P["Rescan policy<br/>2% random floor · 50% cap<br/>trust for clean regulars"]
+    P --> D["Exit decision API<br/>reasons · look here first"]
+    D --> C["Colleague rescans"]
+    C --> L["Outcome logged<br/>with its probability"]
+    L --> W["Weekly job<br/>retrain · drift and fairness gates"]
+    L --> M["Unbiased loss estimate"]
+    W --> R
+```
+
+1. **Score.** At the exit, a logistic model reads the session's scan log and the member's Nectar history (no demographics, channel or time of day) and estimates the chance a rescan finds something. The score is then compared with sessions of a similar basket size, because big baskets nearly always hold an honest slip and are the slowest to rescan.
+2. **Decide.** The score sets a rescan *probability* between a 2% random floor (anyone can be checked) and a 50% cap (nobody is checked every trip), lowered for regulars whose recent rescans were clean. A random draw decides, so no shopper can learn a safe pattern. The colleague sees plain-English reasons and the shopper's usual high-risk items that are missing.
+3. **Learn and measure.** Every decision is logged with its probability. Each week the model retrains on random full rescans and is published only if budget, drift and fairness gates pass; total loss is estimated without bias from the logged probabilities.
 
 ## What makes it different
 
@@ -22,16 +56,29 @@ It is the companion to the [Nectar Offer Engine](https://github.com/TilakHeble/n
 | **True loss from biased rescans** | Known rescan probabilities give an unbiased (inverse-probability-weighted) estimate of total loss, including sessions never checked |
 | **Production shape** | A 25 ms decision API with reasons and "look here first" items, a weekly job that publishes only through budget, drift and fairness gates, and a fairness check that separates real gaps from small-group chance |
 
-## Headline result
+## Run it
 
-**With the same colleague time as today's random rescans, the recommended policy leaves 12% less loss, recovers 5.6x as much (\$11 to \$59 per colleague hour) and stops 69% fewer honest shoppers**, judged against shoppers who learn the policy and respond (test period, mean of 10 runs, range ±0.4%).
+```bash
+pip install -e ".[dev,serve,dashboard]"   # Python 3.12
+streamlit run dashboards/app.py            # the dashboard: needs no data
+python -m smartshop.run_all                # rebuild everything from the 7 CSVs in data/raw (~15 min)
+```
 
-![Headline](reports/figures/17_headline.png)
+More options in [Quick start](#quick-start); the decision API runs in Docker ([docs/deploy.md](docs/deploy.md)).
 
-- **It survives every stress test:** across ten scenarios that each change one assumption and rerun the whole chain, loss is 6–13% lower, recovery 3.9–6.4x and honest stops down 69–70% ([details](#week-8-the-headline-measurement-and-stress-tests)).
-- **Detection, not deterrence, does the work.** Thieves who adapt do exploit a simple threshold, but deterring them would need about a one-in-three rescan chance; randomising beats a threshold by at most 1.4% in any scenario. Judging a policy against shoppers who do not respond overstates it by 20–52%.
-- **Loss stays measurable.** Once rescans are targeted, averaging what they find overstates loss 3.7x; weighting each rescan by its known probability is unbiased, and the 2% random floor is the cross-check.
-- **Ideas that did not earn their place are reported, not hidden:** targeted partial checks (full rescans recover more per colleague-minute) and in-app "did you forget" prompts (mostly wrong).
+---
+
+# How it was built
+
+The build log, week by week. Each week reports what it found at the time, including the mistakes it caught; the [v1.1 section](#v11-an-unseen-theft-method-and-closing-the-age-gap) at the end improves on weeks 8 and 10.
+
+| Week | | Week | |
+|---|---|---|---|
+| 1 | [Data and SmartShop EDA](#week-1-findings) | 6 | [The rescan game](#week-6-the-rescan-game) |
+| 2 | [dbt warehouse](#week-2-the-warehouse) | 7 | [Trust and targeted checks](#week-7-trust-for-honest-regulars-and-targeted-checks) |
+| 3 | [Calibrated simulator](#week-3-a-simulator-calibrated-to-published-research) | 8 | [Headline, measurement, stress tests](#week-8-the-headline-measurement-and-stress-tests) |
+| 4 | [Basket model](#week-4-the-basket-model) | 9 | [Decision API and weekly job](#week-9-the-rescan-decision-api-and-the-weekly-job) |
+| 5 | [Session risk model](#week-5-the-session-risk-model) | 10 | [Fairness, dashboard, model card, business case](#week-10-fairness-dashboard-model-card-and-business-case) |
 
 ## Week 1 findings
 
@@ -355,6 +402,53 @@ make docker && make smoke   # build, start on ./artifacts, smoke-test
 
 Full analysis: [`notebooks/08_fairness_and_trial.ipynb`](notebooks/08_fairness_and_trial.ipynb). Produced by `make report` (about 4 minutes).
 
+## v1.1: an unseen theft method, and closing the age gap
+
+Two questions a reviewer would ask after week 10, both answered by rerunning the whole chain.
+
+**1. "The model only finds the signals you put in the simulator."** So add a theft method it was never designed around: **barcode switching**, where a shopper scans a cheap item's barcode for an expensive one. The count of scans matches the basket, the pace is normal and nothing is deleted, so the strongest scan-log signals vanish. Each switching world runs twice: with the model retrained on that world's random full rescans, and with the model and policy built before switching existed (only rescan volume reset), as if the method appeared after deployment.
+
+![Barcode switching](reports/figures/22_barcode_switching.png)
+
+| Every thief switches barcodes | Loss vs today (v1.0 / v1.1) | Recovery (v1.0 / v1.1) | Deliberate loss in top 12% of scores |
+|---|---|---|---|
+| No switching (base) | −11.4% / −19.6% | 5.4x / 6.9x | 48% |
+| Model retrained | −5.3% / −8.5% | 3.2x / 3.7x | 39% |
+| Model not retrained | −4.3% / −5.7% | 3.0x / 3.2x | 36% (random: 12%) |
+
+The gain shrinks, as it should, but never reverses: honest stops still fall by about two-thirds. Member history keeps the ranking pointing at theft (switchers' baskets hold fewer high-risk items than their usual Nectar baskets), retraining on random full rescans recovers part of the gap, and the random floor keeps total loss measurable whatever the method. A rise in losses found on low-score sessions is the early warning that a new method has appeared.
+
+**2. The age gap.** Week 10 found younger family households stopped about 1.6x as often as the oldest when honest, because their baskets are bigger. The risk model learns "will a rescan find *anything*", and big baskets nearly always hold an honest slip, so raw scores favour them; they are also the slowest to rescan. The fix scores each session against sessions of a similar size (its rank within a band of units scanned, mapped back to the overall score scale), blended with the raw score at a chosen strength. It uses only what the store sees; no demographics.
+
+![Size-neutral scores](reports/figures/23_size_neutral.png)
+
+| Size-neutral strength (test period, as deployed) | Loss vs today | Recovery | Honest stops | Age four-fifths ratio | New-user ratio |
+|---|---|---|---|---|---|
+| 0 (policy v1.0) | −12% | 5.6x | 1,683 | 0.61 (review) | 0.98 |
+| **0.5 (policy v1.1)** | **−20%** | **7.1x** | **1,918** | **0.69** (on the edge of chance, p = 0.05) | **0.88** |
+| 1 (fully size-neutral) | −23% | 7.4x | 2,598 | 0.90 (pass) | 0.80 |
+
+- **It catches more, not less.** Rescans move from slow 40+ item baskets full of honest slips to sessions that look unusual *for their size*: each rescan is quicker, so more fit in the same colleague time, and more of them land on deliberate non-scanning. The v1.0 score answered "will a rescan find anything", not "is this rescan worth a colleague's time".
+- **Chosen honestly.** The strength was chosen on the tuning period (days 331–500), where 0.5 gave most of the gain (−19.5% vs −21.4% at best) for a modest rise in honest stops; the test period then confirmed it. v1.1 beats v1.0 in all 14 stress tests.
+- **The trade-off is stated.** v1.1 stops more honest shoppers than v1.0 (1,918 vs 1,683; still 65% fewer than today), and full strength would push new SmartShop users to the edge of the four-fifths rule. Every group is stopped at under half today's rate under v1.1.
+
+v1.1 is the policy the API now serves (each decision returns `risk_score` and `size_adjusted_score`), the weekly job recalibrates and the dashboard shows. Example response:
+
+```json
+{
+  "decision": "full_rescan",
+  "rescan_probability": 0.5,
+  "risk_score": 0.492,
+  "size_adjusted_score": 0.6995,
+  "reasons": ["long pause between scans", "irregular scanning pace", "usually deletes a lot"],
+  "look_here_first": ["BEEF"],
+  "audit_sample": false,
+  "draw": 0.2
+}
+```
+
+A middling raw score (0.49) becomes 0.70 once the session is compared with baskets of its size. Full analysis: [`notebooks/09_unseen_theft_and_size_neutral.ipynb`](notebooks/09_unseen_theft_and_size_neutral.ipynb). Produced by `python -m smartshop.experiments.sensitivity` and `python -m smartshop.reporting.mitigation`.
+
 ## Ground rules
 
 - **No demographics or protected characteristics** in any model; they are used only for the fairness check. Channel, time of day and tenure are not scored either (they caused unfair flags in week 5), and proxies are checked.
@@ -379,6 +473,7 @@ Full analysis: [`notebooks/08_fairness_and_trial.ipynb`](notebooks/08_fairness_a
 | 8 ✅ | True loss from biased rescans (IPW) and the headline comparison |
 | 9 ✅ | FastAPI rescan-decision API in Docker; gated weekly pipeline |
 | 10 ✅ | Streamlit dashboard, fairness check, model card with a data-protection section, business case |
+| v1.1 ✅ | Unseen-theft stress test (barcode switching); size-neutral scores close the age gap and cut loss further |
 
 **v2: after v1**: deliberate vs accidental misses, deterrence value of a rescan, queue-aware capacity, a conformal cap on honest shoppers stopped, data-driven product hotspots, a nudge experiment sized with CUPED, in-app "you might have forgotten…" prompts, scan-time camera verification.
 
@@ -398,7 +493,7 @@ make policy                 # solve the rescan game, compare policies (~1 min)
 make stress                 # stress tests: ten scenarios, each retrained and refitted (~9 min)
 make weekly                 # serving bundle with drift and release gates (~10 s)
 make serve                  # the rescan decision API on localhost:8000 (docs at /docs)
-make report                 # fairness check, trial sizing, dashboard snapshot (~4 min)
+make report                 # fairness check, trial sizing, dashboard snapshot (~8 min)
 make dashboard              # the Streamlit dashboard on localhost:8501
 make eda                    # run the notebooks and export HTML
 make test                   # unit, leakage and data-quality tests
@@ -406,7 +501,7 @@ make dbt-docs               # browse model documentation and lineage
 make sample                 # no data? build a synthetic warehouse with the same schema
 ```
 
-On Windows without `make`: `python -m smartshop.ingest.load_raw`, then `cd dbt; dbt build --profiles-dir .; cd ..`, then `python -m smartshop.simulate.simulator`, then `python -m smartshop.basket.model`, then `python -m smartshop.risk.model`, then `python -m smartshop.policy.search`, then `pytest -q`. Use Python 3.12, as for Nectar.
+On Windows (no `make`): `python -m smartshop.run_all` runs every step in order (`--from <step>` resumes, `--stress` adds the stress tests). Use Python 3.12, as for Nectar.
 
 ## Repository layout
 
@@ -418,20 +513,21 @@ On Windows without `make`: `python -m smartshop.ingest.load_raw`, then `cd dbt; 
 │   ├── simulate/            # SimConfig (sources), simulator, rescan model, calibration
 │   ├── basket/              # observed history, masked-basket features, LightGBM model, fair evaluation
 │   ├── risk/                # observable risk features, honest selection, evaluation, fairness
-│   ├── policy/              # the rescan game, policy search, trust over cycles, targeted checks
+│   ├── policy/              # the rescan game, policy search, trust, targeted checks, size-neutral scores (v1.1)
 │   ├── experiments/         # loss measurement (inverse-probability weighting), stress tests
 │   ├── serving/             # bundle, exit-time features, FastAPI app, demo bundle, smoke test
 │   ├── monitoring/drift.py  # population stability index
 │   ├── pipeline/weekly.py   # the weekly job: rebuild, drift, release gates, atomic publish
-│   ├── reporting/           # full fairness check, trial sizing, dashboard snapshot
+│   ├── reporting/           # full fairness check, trial sizing, fairness mitigation, dashboard snapshot
+│   ├── run_all.py           # every step in order, one command (Windows-friendly)
 │   ├── warehouse.py         # connect to DuckDB, run dbt from Python
 │   └── viz.py               # chart style shared with Nectar
 ├── dbt/                     # seeds, staging, marts, 47 data tests
-├── notebooks/               # 01 EDA · 02 simulator validation · 03 basket model · 04 risk model · 05 rescan policy · 06 trust and targeting · 07 headline and stress tests · 08 fairness and trial
+├── notebooks/               # 01 EDA · 02 simulator validation · 03 basket model · 04 risk model · 05 rescan policy · 06 trust and targeting · 07 headline and stress tests · 08 fairness and trial · 09 unseen theft and size-neutral scores
 ├── models/                  # basket and risk metrics (+ model files, generated by make basket / make risk)
 ├── reports/                 # HTML export + figures
 ├── dashboards/              # Streamlit app + aggregate snapshot (deployable without the data)
-├── docs/                    # model card, business case, deploy guide
+├── docs/                    # model card, business case, interview notes, deploy guide
 ├── tests/                   # marts on synthetic data, point-in-time leakage, data-quality contract
 ├── Dockerfile               # serving image (bundle mounted, not baked in)
 └── .github/workflows/ci.yml # ruff + dbt parse + pytest, then build the image and smoke-test the container

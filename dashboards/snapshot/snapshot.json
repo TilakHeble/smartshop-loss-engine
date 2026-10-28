@@ -1,5 +1,5 @@
 {
- "built_at": "2026-10-27T13:57:12.728305+00:00",
+ "built_at": "2026-10-28T10:48:51.102804+00:00",
  "note": "Simulated SmartShop sessions on dunnhumby Complete Journey baskets (US $). Aggregates only.",
  "period": {
   "days": 211,
@@ -12,8 +12,123 @@
   "floor": 0.02,
   "cap": 0.5,
   "tau": 0.05,
-  "t": 0.5832778662443161
+  "t": 0.5832778662443161,
+  "size_neutral_strength": 0.5
  },
+ "policy_version": "1.1",
+ "v1_0": {
+  "loss_remaining": 36766.72411430313,
+  "recovered": 6640.167145269754,
+  "honest_stops": 1682.6135616855754,
+  "colleague_hours": 113.44363033653482
+ },
+ "mitigation": [
+  {
+   "strength": 0.0,
+   "tuning: loss reduction vs today": 0.12446663531251856,
+   "tuning: honest stops vs today": 0.31423197200306197,
+   "loss remaining": 36766.724041252,
+   "loss reduction vs today": 0.11701591407219958,
+   "recovered": 6640.167218320885,
+   "recovery multiple": 5.552985710733808,
+   "honest stops": 1682.613585025501,
+   "colleague hours": 113.44363225878263,
+   "age group: four-fifths ratio": 0.6111830658808226,
+   "age group: verdict": "review",
+   "household size: four-fifths ratio": 0.6358839739896242,
+   "household size: verdict": "gap explained by basket size",
+   "income level: four-fifths ratio": 0.5946601362727503,
+   "income level: verdict": "gap within chance for groups this small",
+   "channel: four-fifths ratio": 0.9602499766135922,
+   "channel: verdict": "pass",
+   "new SmartShop user (<5 sessions): four-fifths ratio": 0.9794241898393443,
+   "new SmartShop user (<5 sessions): verdict": "pass"
+  },
+  {
+   "strength": 0.25,
+   "tuning: loss reduction vs today": 0.15877509796132627,
+   "tuning: honest stops vs today": 0.3298577054736864,
+   "loss remaining": 34906.274628710096,
+   "loss reduction vs today": 0.16169618588823276,
+   "recovered": 7699.110964196113,
+   "recovery multiple": 6.438550681611611,
+   "honest stops": 1752.644299879758,
+   "colleague hours": 113.4436323521405,
+   "age group: four-fifths ratio": 0.6338362079431485,
+   "age group: verdict": "review",
+   "household size: four-fifths ratio": 0.6778031493481579,
+   "household size: verdict": "review",
+   "income level: four-fifths ratio": 0.6545373065397668,
+   "income level: verdict": "gap within chance for groups this small",
+   "channel: four-fifths ratio": 0.9684746000825181,
+   "channel: verdict": "pass",
+   "new SmartShop user (<5 sessions): four-fifths ratio": 0.9159445813177253,
+   "new SmartShop user (<5 sessions): verdict": "pass"
+  },
+  {
+   "strength": 0.5,
+   "tuning: loss reduction vs today": 0.19533216601326808,
+   "tuning: honest stops vs today": 0.36734916911472976,
+   "loss remaining": 33429.905711619605,
+   "loss reduction vs today": 0.1971524385934431,
+   "recovered": 8512.66338128661,
+   "recovery multiple": 7.118901762917492,
+   "honest stops": 1918.1786455430351,
+   "colleague hours": 113.44363210304816,
+   "age group: four-fifths ratio": 0.689294092243027,
+   "age group: verdict": "gap within chance for groups this small",
+   "household size: four-fifths ratio": 0.7197625391641308,
+   "household size: verdict": "gap explained by basket size",
+   "income level: four-fifths ratio": 0.717427378580494,
+   "income level: verdict": "gap explained by basket size",
+   "channel: four-fifths ratio": 0.9834182218129083,
+   "channel: verdict": "pass",
+   "new SmartShop user (<5 sessions): four-fifths ratio": 0.882999470297389,
+   "new SmartShop user (<5 sessions): verdict": "pass"
+  },
+  {
+   "strength": 0.75,
+   "tuning: loss reduction vs today": 0.21400773655655936,
+   "tuning: honest stops vs today": 0.42838861644716253,
+   "loss remaining": 32557.017246978445,
+   "loss reduction vs today": 0.2181155959909672,
+   "recovered": 8898.01284592776,
+   "recovery multiple": 7.441158718267532,
+   "honest stops": 2192.7408860546566,
+   "colleague hours": 113.44363243092019,
+   "age group: four-fifths ratio": 0.8371633304609203,
+   "age group: verdict": "pass",
+   "household size: four-fifths ratio": 0.8055199322040745,
+   "household size: verdict": "pass",
+   "income level: four-fifths ratio": 0.6061345710492952,
+   "income level: verdict": "gap within chance for groups this small",
+   "channel: four-fifths ratio": 0.9911817190606074,
+   "channel: verdict": "pass",
+   "new SmartShop user (<5 sessions): four-fifths ratio": 0.8488226555787312,
+   "new SmartShop user (<5 sessions): verdict": "pass"
+  },
+  {
+   "strength": 1.0,
+   "tuning: loss reduction vs today": 0.20708223716963825,
+   "tuning: honest stops vs today": 0.5062389397083199,
+   "loss remaining": 32157.27596452104,
+   "loss reduction vs today": 0.22771572219482028,
+   "recovered": 8807.98919505184,
+   "recovery multiple": 7.365874462539332,
+   "honest stops": 2597.5693564456465,
+   "colleague hours": 113.44363249242456,
+   "age group: four-fifths ratio": 0.8972542868435963,
+   "age group: verdict": "pass",
+   "household size: four-fifths ratio": 0.8440253910005105,
+   "household size: verdict": "pass",
+   "income level: four-fifths ratio": 0.5548968907960199,
+   "income level: verdict": "gap within chance for groups this small",
+   "channel: four-fifths ratio": 0.9963674665736837,
+   "channel: verdict": "pass",
+   "new SmartShop user (<5 sessions): four-fifths ratio": 0.7997355077544467,
+   "new SmartShop user (<5 sessions): verdict": "review"
+  }
+ ],
  "trust_rule": {
   "step": 0.25,
   "max_discount": 0.75,
@@ -32,20 +147,20 @@
    "colleague_hours": 113.44363333333334
   },
   "policy": {
-   "loss_remaining": 36766.72411430313,
-   "recovered": 6640.167145269753,
-   "honest_stops": 1682.6135616855754,
-   "colleague_hours": 113.44363033653481
+   "loss_remaining": 33429.905711619605,
+   "recovered": 8512.66338128661,
+   "honest_stops": 1918.178645543035,
+   "colleague_hours": 113.44363210304816
   },
   "policy_min": {
-   "loss_remaining": 36638.74760153107,
-   "recovered": 6583.222933719257,
-   "honest_stops": 1679.4911350919865
+   "loss_remaining": 33296.4273345898,
+   "recovered": 8367.984508847489,
+   "honest_stops": 1913.758915008786
   },
   "policy_max": {
-   "loss_remaining": 36889.72323692271,
-   "recovered": 6751.030765261261,
-   "honest_stops": 1686.1016242124515
+   "loss_remaining": 33542.957417392056,
+   "recovered": 8585.020223784359,
+   "honest_stops": 1924.3405183476934
   },
   "loss_before_rescans": 42834.95275957288
  },
@@ -56,8 +171,8 @@
    "loss_before_rescans": 1731.762043859649,
    "today_recovered": 46.038253876076155,
    "today_honest_stops": 186.12000000000006,
-   "policy_recovered": 371.47076882224303,
-   "policy_honest_stops": 67.3
+   "policy_recovered": 412.7379467353952,
+   "policy_honest_stops": 78.7
   },
   {
    "week": 2,
@@ -65,8 +180,8 @@
    "loss_before_rescans": 1098.4575,
    "today_recovered": 32.273555694019876,
    "today_honest_stops": 176.64000000000004,
-   "policy_recovered": 127.95436254295532,
-   "policy_honest_stops": 46.0
+   "policy_recovered": 165.5604261168385,
+   "policy_honest_stops": 53.7
   },
   {
    "week": 3,
@@ -74,8 +189,8 @@
    "loss_before_rescans": 1290.798141025641,
    "today_recovered": 37.54279348124861,
    "today_honest_stops": 175.56000000000006,
-   "policy_recovered": 162.5780894792493,
-   "policy_honest_stops": 52.8
+   "policy_recovered": 256.32630200898757,
+   "policy_honest_stops": 60.9
   },
   {
    "week": 4,
@@ -83,8 +198,8 @@
    "loss_before_rescans": 1165.3044642857142,
    "today_recovered": 32.34649542915203,
    "today_honest_stops": 180.96000000000004,
-   "policy_recovered": 288.8408379970545,
-   "policy_honest_stops": 65.5
+   "policy_recovered": 310.1952606774668,
+   "policy_honest_stops": 68.0
   },
   {
    "week": 5,
@@ -92,8 +207,8 @@
    "loss_before_rescans": 1593.3221666666666,
    "today_recovered": 42.36688520521925,
    "today_honest_stops": 192.12000000000006,
-   "policy_recovered": 276.4781572164949,
-   "policy_honest_stops": 59.5
+   "policy_recovered": 345.84690979381446,
+   "policy_honest_stops": 72.0
   },
   {
    "week": 6,
@@ -101,8 +216,8 @@
    "loss_before_rescans": 1464.3206071428572,
    "today_recovered": 39.796816807303315,
    "today_honest_stops": 169.32000000000002,
-   "policy_recovered": 258.0234835051546,
-   "policy_honest_stops": 49.9
+   "policy_recovered": 314.23154192439864,
+   "policy_honest_stops": 56.3
   },
   {
    "week": 7,
@@ -110,8 +225,8 @@
    "loss_before_rescans": 1226.4841666666666,
    "today_recovered": 36.20277539333526,
    "today_honest_stops": 172.44000000000003,
-   "policy_recovered": 112.80206701030929,
-   "policy_honest_stops": 56.3
+   "policy_recovered": 208.9707371134021,
+   "policy_honest_stops": 67.0
   },
   {
    "week": 8,
@@ -119,8 +234,8 @@
    "loss_before_rescans": 1381.838255639098,
    "today_recovered": 39.86529878975026,
    "today_honest_stops": 181.56000000000003,
-   "policy_recovered": 243.14978911195516,
-   "policy_honest_stops": 50.0
+   "policy_recovered": 308.29784777665816,
+   "policy_honest_stops": 61.7
   },
   {
    "week": 9,
@@ -128,8 +243,8 @@
    "loss_before_rescans": 1392.421862745098,
    "today_recovered": 38.869413986672484,
    "today_honest_stops": 184.80000000000004,
-   "policy_recovered": 157.4829942389327,
-   "policy_honest_stops": 57.9
+   "policy_recovered": 221.45855841924396,
+   "policy_honest_stops": 67.7
   },
   {
    "week": 10,
@@ -137,8 +252,8 @@
    "loss_before_rescans": 1346.195518037518,
    "today_recovered": 37.95747911880609,
    "today_honest_stops": 180.12000000000006,
-   "policy_recovered": 231.7690058419244,
-   "policy_honest_stops": 50.0
+   "policy_recovered": 252.4863941580756,
+   "policy_honest_stops": 53.9
   },
   {
    "week": 11,
@@ -146,8 +261,8 @@
    "loss_before_rescans": 1281.4098076923078,
    "today_recovered": 36.41292595589267,
    "today_honest_stops": 168.96000000000004,
-   "policy_recovered": 208.6397318265927,
-   "policy_honest_stops": 51.3
+   "policy_recovered": 260.26199643140365,
+   "policy_honest_stops": 61.4
   },
   {
    "week": 12,
@@ -155,8 +270,8 @@
    "loss_before_rescans": 1285.282209851552,
    "today_recovered": 35.809854219466715,
    "today_honest_stops": 182.28000000000003,
-   "policy_recovered": 202.0739501718213,
-   "policy_honest_stops": 54.8
+   "policy_recovered": 265.79162199312714,
+   "policy_honest_stops": 59.2
   },
   {
    "week": 13,
@@ -164,8 +279,8 @@
    "loss_before_rescans": 1509.581811594203,
    "today_recovered": 42.951862587563454,
    "today_honest_stops": 185.40000000000003,
-   "policy_recovered": 298.45039862542956,
-   "policy_honest_stops": 50.0
+   "policy_recovered": 355.13837285223366,
+   "policy_honest_stops": 57.5
   },
   {
    "week": 14,
@@ -173,8 +288,8 @@
    "loss_before_rescans": 1439.2073333333333,
    "today_recovered": 38.945364202855885,
    "today_honest_stops": 186.12000000000003,
-   "policy_recovered": 249.7023352233677,
-   "policy_honest_stops": 62.7
+   "policy_recovered": 268.06257061855666,
+   "policy_honest_stops": 71.4
   },
   {
    "week": 15,
@@ -182,8 +297,8 @@
    "loss_before_rescans": 1761.1999523809525,
    "today_recovered": 45.01204205946459,
    "today_honest_stops": 175.32000000000005,
-   "policy_recovered": 328.3639705940108,
-   "policy_honest_stops": 62.5
+   "policy_recovered": 441.8777776632302,
+   "policy_honest_stops": 69.5
   },
   {
    "week": 16,
@@ -191,8 +306,8 @@
    "loss_before_rescans": 1213.9863333333333,
    "today_recovered": 38.231469229887125,
    "today_honest_stops": 205.32000000000008,
-   "policy_recovered": 151.1814381443299,
-   "policy_honest_stops": 59.3
+   "policy_recovered": 192.18023367697592,
+   "policy_honest_stops": 69.4
   },
   {
    "week": 17,
@@ -200,8 +315,8 @@
    "loss_before_rescans": 1372.6310350877193,
    "today_recovered": 36.717430800442315,
    "today_honest_stops": 157.20000000000005,
-   "policy_recovered": 196.61475031651295,
-   "policy_honest_stops": 47.5
+   "policy_recovered": 301.04396956049925,
+   "policy_honest_stops": 52.9
   },
   {
    "week": 18,
@@ -209,8 +324,8 @@
    "loss_before_rescans": 1508.5792261904762,
    "today_recovered": 40.6637729028802,
    "today_honest_stops": 185.28000000000006,
-   "policy_recovered": 257.0210987972509,
-   "policy_honest_stops": 66.7
+   "policy_recovered": 349.8049378988709,
+   "policy_honest_stops": 71.9
   },
   {
    "week": 19,
@@ -218,8 +333,8 @@
    "loss_before_rescans": 1274.0789464285713,
    "today_recovered": 36.19601965709495,
    "today_honest_stops": 178.20000000000005,
-   "policy_recovered": 211.70954436671573,
-   "policy_honest_stops": 53.7
+   "policy_recovered": 262.39868334560623,
+   "policy_honest_stops": 60.1
   },
   {
    "week": 20,
@@ -227,8 +342,8 @@
    "loss_before_rescans": 1456.6063095238094,
    "today_recovered": 43.31269352015197,
    "today_honest_stops": 189.84000000000003,
-   "policy_recovered": 231.3499821305842,
-   "policy_honest_stops": 65.8
+   "policy_recovered": 290.38690893470783,
+   "policy_honest_stops": 71.9
   },
   {
    "week": 21,
@@ -236,8 +351,8 @@
    "loss_before_rescans": 1455.2030303030303,
    "today_recovered": 39.4181498882429,
    "today_honest_stops": 168.36000000000004,
-   "policy_recovered": 284.77810051546396,
-   "policy_honest_stops": 52.0
+   "policy_recovered": 381.05462800687286,
+   "policy_honest_stops": 57.9
   },
   {
    "week": 22,
@@ -245,8 +360,8 @@
    "loss_before_rescans": 1673.6915833333333,
    "today_recovered": 47.677317859133424,
    "today_honest_stops": 192.84000000000003,
-   "policy_recovered": 259.49145601374573,
-   "policy_honest_stops": 58.3
+   "policy_recovered": 352.98708831615124,
+   "policy_honest_stops": 64.6
   },
   {
    "week": 23,
@@ -254,8 +369,8 @@
    "loss_before_rescans": 1588.4233571428572,
    "today_recovered": 41.97881084503574,
    "today_honest_stops": 180.84000000000006,
-   "policy_recovered": 189.86788745704467,
-   "policy_honest_stops": 63.5
+   "policy_recovered": 303.453426975945,
+   "policy_honest_stops": 69.2
   },
   {
    "week": 24,
@@ -263,8 +378,8 @@
    "loss_before_rescans": 1228.5101190476191,
    "today_recovered": 35.473199604108686,
    "today_honest_stops": 177.12000000000003,
-   "policy_recovered": 196.69434192439863,
-   "policy_honest_stops": 59.2
+   "policy_recovered": 236.34215120274916,
+   "policy_honest_stops": 60.1
   },
   {
    "week": 25,
@@ -272,8 +387,8 @@
    "loss_before_rescans": 1714.1327380952382,
    "today_recovered": 43.760860578902,
    "today_honest_stops": 184.80000000000004,
-   "policy_recovered": 330.582236622484,
-   "policy_honest_stops": 53.7
+   "policy_recovered": 402.088057928326,
+   "policy_honest_stops": 67.6
   },
   {
    "week": 26,
@@ -281,8 +396,8 @@
    "loss_before_rescans": 1565.6748115942028,
    "today_recovered": 43.93009553663009,
    "today_honest_stops": 180.72000000000003,
-   "policy_recovered": 181.09215933811447,
-   "policy_honest_stops": 52.1
+   "policy_recovered": 234.1467360824742,
+   "policy_honest_stops": 60.1
   },
   {
    "week": 27,
@@ -290,8 +405,8 @@
    "loss_before_rescans": 1270.6770952380953,
    "today_recovered": 37.525097040835774,
    "today_honest_stops": 182.76000000000005,
-   "policy_recovered": 255.47359312714775,
-   "policy_honest_stops": 64.4
+   "policy_recovered": 274.7221524054983,
+   "policy_honest_stops": 66.7
   },
   {
    "week": 28,
@@ -299,8 +414,8 @@
    "loss_before_rescans": 1825.4083333333333,
    "today_recovered": 48.48726746687255,
    "today_honest_stops": 188.04000000000005,
-   "policy_recovered": 430.94893384879725,
-   "policy_honest_stops": 60.3
+   "policy_recovered": 490.11354982817863,
+   "policy_honest_stops": 68.0
   },
   {
    "week": 29,
@@ -308,8 +423,8 @@
    "loss_before_rescans": 950.5375,
    "today_recovered": 30.01243016234438,
    "today_honest_stops": 165.36,
-   "policy_recovered": 189.00157130584194,
-   "policy_honest_stops": 46.2
+   "policy_recovered": 196.25509192439864,
+   "policy_honest_stops": 49.5
   },
   {
    "week": 30,
@@ -317,8 +432,8 @@
    "loss_before_rescans": 1515.5031666666669,
    "today_recovered": 43.39899964020144,
    "today_honest_stops": 165.12000000000003,
-   "policy_recovered": 225.16404536082473,
-   "policy_honest_stops": 55.2
+   "policy_recovered": 298.7223735395189,
+   "policy_honest_stops": 63.2
   },
   {
    "week": 31,
@@ -326,8 +441,8 @@
    "loss_before_rescans": 253.72333333333333,
    "today_recovered": 6.6078036820631905,
    "today_honest_stops": 28.680000000000007,
-   "policy_recovered": 60.857494845360826,
-   "policy_honest_stops": 8.4
+   "policy_recovered": 60.23217525773197,
+   "policy_honest_stops": 7.4
   }
  ],
  "trust_cycles": [
@@ -338,52 +453,52 @@
   },
   {
    "cycle": 2,
-   "members_trusted": 678.5,
-   "trust_discount_to_thieves": 0.10138435730348254
+   "members_trusted": 709.9,
+   "trust_discount_to_thieves": 0.10454177015258978
   },
   {
    "cycle": 3,
-   "members_trusted": 769.3,
-   "trust_discount_to_thieves": 0.09176776047555857
+   "members_trusted": 819.2,
+   "trust_discount_to_thieves": 0.09380718379751901
   },
   {
    "cycle": 4,
-   "members_trusted": 837.2,
-   "trust_discount_to_thieves": 0.0911566371220441
+   "members_trusted": 896.9,
+   "trust_discount_to_thieves": 0.09205055646880025
   }
  ],
  "bands": [
   {
    "band": "floor (2%)",
-   "sessions": 0.8760113285708248,
-   "rescans": 0.44646001173771543,
-   "found": 0.07187048414223328,
-   "honest_share": 0.9598191451374748,
-   "mean_p": 0.02
+   "sessions": 0.8326964534809993,
+   "rescans": 0.3637777981147616,
+   "found": 0.04550034511572233,
+   "honest_share": 0.9710291333106589,
+   "mean_p": 0.02000000000746721
   },
   {
    "band": "2-10%",
-   "sessions": 0.07024770680982373,
-   "rescans": 0.04583044336552313,
-   "found": 0.033553941555784894,
-   "honest_share": 0.8839245419261667,
-   "mean_p": 0.02504417938567093
+   "sessions": 0.09150779896013865,
+   "rescans": 0.04969341996888441,
+   "found": 0.029174768926760786,
+   "honest_share": 0.8867562823355506,
+   "mean_p": 0.02559607760563844
   },
   {
    "band": "10-30%",
-   "sessions": 0.016160121739865578,
-   "rescans": 0.07741556847889879,
-   "found": 0.06398288409519791,
-   "honest_share": 0.9359142035051007,
-   "mean_p": 0.18778846992348816
+   "sessions": 0.025806315255526905,
+   "rescans": 0.10281870595771941,
+   "found": 0.07590249358302711,
+   "honest_share": 0.9054054054054054,
+   "mean_p": 0.18405091242528837
   },
   {
    "band": "30-50%",
-   "sessions": 0.03758084287948599,
-   "rescans": 0.43029397641786266,
-   "found": 0.830592690206784,
-   "honest_share": 0.8571508914009336,
-   "mean_p": 0.4490720984320607
+   "sessions": 0.04998943230333516,
+   "rescans": 0.4837100759586346,
+   "found": 0.8494223923744898,
+   "honest_share": 0.8103754439370878,
+   "mean_p": 0.4486992498647351
   }
  ],
  "curve": {
@@ -898,145 +1013,145 @@
    "hour": 0.0,
    "sessions_per_day": 1.7298578199052133,
    "today_rescans_per_day": 0.2075829383886256,
-   "policy_rescans_per_day": 0.07914691943127962
+   "policy_rescans_per_day": 0.0981042654028436
   },
   {
    "hour": 1.0,
    "sessions_per_day": 0.6018957345971564,
    "today_rescans_per_day": 0.07222748815165878,
-   "policy_rescans_per_day": 0.026540284360189573
+   "policy_rescans_per_day": 0.03364928909952607
   },
   {
    "hour": 2.0,
    "sessions_per_day": 0.6966824644549763,
    "today_rescans_per_day": 0.08360189573459716,
-   "policy_rescans_per_day": 0.01990521327014218
+   "policy_rescans_per_day": 0.026540284360189573
   },
   {
    "hour": 3.0,
    "sessions_per_day": 0.3696682464454976,
    "today_rescans_per_day": 0.04436018957345972,
-   "policy_rescans_per_day": 0.012322274881516588
+   "policy_rescans_per_day": 0.014218009478672985
   },
   {
    "hour": 4.0,
    "sessions_per_day": 0.2796208530805687,
    "today_rescans_per_day": 0.03355450236966825,
-   "policy_rescans_per_day": 0.00900473933649289
+   "policy_rescans_per_day": 0.012796208530805687
   },
   {
    "hour": 5.0,
    "sessions_per_day": 0.4218009478672986,
    "today_rescans_per_day": 0.05061611374407583,
-   "policy_rescans_per_day": 0.00900473933649289
+   "policy_rescans_per_day": 0.011374407582938388
   },
   {
    "hour": 6.0,
    "sessions_per_day": 1.2843601895734598,
    "today_rescans_per_day": 0.15412322274881518,
-   "policy_rescans_per_day": 0.024644549763033177
+   "policy_rescans_per_day": 0.04028436018957346
   },
   {
    "hour": 7.0,
    "sessions_per_day": 2.2085308056872037,
    "today_rescans_per_day": 0.26502369668246445,
-   "policy_rescans_per_day": 0.05355450236966825
+   "policy_rescans_per_day": 0.06682464454976303
   },
   {
    "hour": 8.0,
    "sessions_per_day": 3.4928909952606637,
    "today_rescans_per_day": 0.4191469194312797,
-   "policy_rescans_per_day": 0.1004739336492891
+   "policy_rescans_per_day": 0.1308056872037915
   },
   {
    "hour": 9.0,
    "sessions_per_day": 6.2274881516587675,
    "today_rescans_per_day": 0.7472985781990521,
-   "policy_rescans_per_day": 0.24597156398104264
+   "policy_rescans_per_day": 0.30426540284360193
   },
   {
    "hour": 10.0,
    "sessions_per_day": 9.909952606635072,
    "today_rescans_per_day": 1.1891943127962088,
-   "policy_rescans_per_day": 0.3890995260663507
+   "policy_rescans_per_day": 0.4587677725118483
   },
   {
    "hour": 11.0,
    "sessions_per_day": 13.431279620853081,
    "today_rescans_per_day": 1.6117535545023698,
-   "policy_rescans_per_day": 0.5436018957345972
+   "policy_rescans_per_day": 0.6042654028436019
   },
   {
    "hour": 12.0,
    "sessions_per_day": 15.658767772511847,
    "today_rescans_per_day": 1.8790521327014218,
-   "policy_rescans_per_day": 0.6549763033175355
+   "policy_rescans_per_day": 0.7748815165876777
   },
   {
    "hour": 13.0,
    "sessions_per_day": 16.791469194312796,
    "today_rescans_per_day": 2.014976303317536,
-   "policy_rescans_per_day": 0.6971563981042653
+   "policy_rescans_per_day": 0.7805687203791468
   },
   {
    "hour": 14.0,
    "sessions_per_day": 16.620853080568722,
    "today_rescans_per_day": 1.9945023696682467,
-   "policy_rescans_per_day": 0.6322274881516587
+   "policy_rescans_per_day": 0.74739336492891
   },
   {
    "hour": 15.0,
    "sessions_per_day": 18.492890995260662,
    "today_rescans_per_day": 2.21914691943128,
-   "policy_rescans_per_day": 0.7383886255924171
+   "policy_rescans_per_day": 0.8715639810426541
   },
   {
    "hour": 16.0,
    "sessions_per_day": 21.14691943127962,
    "today_rescans_per_day": 2.5376303317535545,
-   "policy_rescans_per_day": 0.8582938388625592
+   "policy_rescans_per_day": 0.9938388625592417
   },
   {
    "hour": 17.0,
    "sessions_per_day": 24.18483412322275,
    "today_rescans_per_day": 2.90218009478673,
-   "policy_rescans_per_day": 0.9815165876777251
+   "policy_rescans_per_day": 1.1696682464454977
   },
   {
    "hour": 18.0,
    "sessions_per_day": 20.90521327014218,
    "today_rescans_per_day": 2.508625592417062,
-   "policy_rescans_per_day": 0.7962085308056872
+   "policy_rescans_per_day": 0.8957345971563981
   },
   {
    "hour": 19.0,
    "sessions_per_day": 17.563981042654028,
    "today_rescans_per_day": 2.1076777251184837,
-   "policy_rescans_per_day": 0.7085308056872038
+   "policy_rescans_per_day": 0.8137440758293838
   },
   {
    "hour": 20.0,
    "sessions_per_day": 13.729857819905213,
    "today_rescans_per_day": 1.6475829383886258,
-   "policy_rescans_per_day": 0.5720379146919431
+   "policy_rescans_per_day": 0.6587677725118484
   },
   {
    "hour": 21.0,
    "sessions_per_day": 9.549763033175356,
    "today_rescans_per_day": 1.1459715639810428,
-   "policy_rescans_per_day": 0.38341232227488153
+   "policy_rescans_per_day": 0.4184834123222749
   },
   {
    "hour": 22.0,
    "sessions_per_day": 5.677725118483412,
    "today_rescans_per_day": 0.6813270142180095,
-   "policy_rescans_per_day": 0.23412322274881517
+   "policy_rescans_per_day": 0.28056872037914693
   },
   {
    "hour": 23.0,
    "sessions_per_day": 3.2606635071090047,
    "today_rescans_per_day": 0.3912796208530806,
-   "policy_rescans_per_day": 0.11279620853080569
+   "policy_rescans_per_day": 0.15023696682464455
   }
  ],
  "fairness": [
@@ -1044,328 +1159,328 @@
    "attribute": "channel",
    "groups": 2,
    "fewest households in a group": 1040,
-   "honest sessions": 44959,
-   "lowest group rate": 0.036759551916992185,
-   "highest group rate": 0.03828123176644438,
+   "honest sessions": 45121,
+   "lowest group rate": 0.04221972172156784,
+   "highest group rate": 0.042931604057261395,
    "most-stopped group": "handset",
-   "four-fifths ratio": 0.9602499768362722,
-   "ratio CI low": 0.88581175607847,
-   "ratio CI high": 0.9981540695521911,
-   "ratio, same basket sizes": 0.9784721559447138,
-   "ratio if groups were random (median)": 0.9739008754799965,
-   "chance of a gap this large": 0.30333333333333334,
-   "highest rate vs today": 0.3190102647203698,
+   "four-fifths ratio": 0.9834182218129083,
+   "ratio CI low": 0.9233106552291809,
+   "ratio CI high": 0.9987255925541402,
+   "ratio, same basket sizes": 0.9946021391678357,
+   "ratio if groups were random (median)": 0.9775624186611233,
+   "chance of a gap this large": 0.6033333333333334,
+   "highest rate vs today": 0.35776336714384493,
    "verdict": "pass"
   },
   {
    "attribute": "new SmartShop user (<5 sessions)",
    "groups": 2,
-   "fewest households in a group": 693,
-   "honest sessions": 44959,
-   "lowest group rate": 0.0373840463435995,
-   "highest group rate": 0.0381694128854983,
+   "fewest households in a group": 695,
+   "honest sessions": 45121,
+   "lowest group rate": 0.04228870686273687,
+   "highest group rate": 0.047892108982233346,
    "most-stopped group": "True",
-   "four-fifths ratio": 0.9794241911906069,
-   "ratio CI low": 0.8563149960988142,
-   "ratio CI high": 0.9982053725650423,
-   "ratio, same basket sizes": 0.9153111905375652,
-   "ratio if groups were random (median)": 0.9706960978369341,
-   "chance of a gap this large": 0.67,
-   "highest rate vs today": 0.3180784407124858,
+   "four-fifths ratio": 0.882999470297389,
+   "ratio CI low": 0.7848459096109572,
+   "ratio CI high": 0.9795700229786387,
+   "ratio, same basket sizes": 0.8378684132781083,
+   "ratio if groups were random (median)": 0.9741769445746675,
+   "chance of a gap this large": 0.0,
+   "highest rate vs today": 0.3991009081852778,
    "verdict": "pass"
   },
   {
    "attribute": "evening peak",
    "groups": 2,
-   "fewest households in a group": 2026,
-   "honest sessions": 44959,
-   "lowest group rate": 0.037306925220437645,
-   "highest group rate": 0.03746373276201012,
+   "fewest households in a group": 2028,
+   "honest sessions": 45121,
+   "lowest group rate": 0.04231937728042362,
+   "highest group rate": 0.042614279688983285,
    "most-stopped group": "0.0",
-   "four-fifths ratio": 0.9958144175710252,
-   "ratio CI low": 0.9350032083681883,
-   "ratio CI high": 0.9992441762333143,
-   "ratio, same basket sizes": 0.9937457638541437,
-   "ratio if groups were random (median)": 0.9693554380665039,
-   "chance of a gap this large": 0.9266666666666666,
-   "highest rate vs today": 0.312197773016751,
+   "four-fifths ratio": 0.9930797279524144,
+   "ratio CI low": 0.938912230630403,
+   "ratio CI high": 0.9993421064688279,
+   "ratio, same basket sizes": 0.9845939723055934,
+   "ratio if groups were random (median)": 0.9753392010956046,
+   "chance of a gap this large": 0.8633333333333333,
+   "highest rate vs today": 0.355118997408194,
    "verdict": "pass"
   },
   {
    "attribute": "age group",
    "groups": 6,
    "fewest households in a group": 46,
-   "honest sessions": 24196,
-   "lowest group rate": 0.027581232756046785,
-   "highest group rate": 0.0451276127223737,
-   "most-stopped group": "Age Group3",
-   "four-fifths ratio": 0.6111830671329166,
-   "ratio CI low": 0.49729953269254534,
-   "ratio CI high": 0.6740373330487259,
-   "ratio, same basket sizes": 0.7609889514756283,
-   "ratio if groups were random (median)": 0.803254716423067,
-   "chance of a gap this large": 0.01,
-   "highest rate vs today": 0.37606343935311415,
-   "verdict": "review"
+   "honest sessions": 24286,
+   "lowest group rate": 0.034523719549314096,
+   "highest group rate": 0.05008561648478766,
+   "most-stopped group": "Age Group2",
+   "four-fifths ratio": 0.689294092243027,
+   "ratio CI low": 0.5526966846209259,
+   "ratio CI high": 0.7546808158732441,
+   "ratio, same basket sizes": 0.7762138909808898,
+   "ratio if groups were random (median)": 0.8200478698588531,
+   "chance of a gap this large": 0.05,
+   "highest rate vs today": 0.4173801373732305,
+   "verdict": "gap within chance for groups this small"
   },
   {
    "attribute": "household size",
    "groups": 5,
    "fewest households in a group": 53,
-   "honest sessions": 24196,
-   "lowest group rate": 0.03450727678633191,
-   "highest group rate": 0.05426662402278408,
+   "honest sessions": 24286,
+   "lowest group rate": 0.03982851858630635,
+   "highest group rate": 0.05533563699016582,
    "most-stopped group": "5+",
-   "four-fifths ratio": 0.635883978554551,
-   "ratio CI low": 0.5149185942763078,
-   "ratio CI high": 0.7247163067008119,
-   "ratio, same basket sizes": 0.8081298583108928,
-   "ratio if groups were random (median)": 0.8360312649219899,
-   "chance of a gap this large": 0.0,
-   "highest rate vs today": 0.452221866856534,
+   "four-fifths ratio": 0.7197625391641308,
+   "ratio CI low": 0.5987259532794202,
+   "ratio CI high": 0.7997873281359269,
+   "ratio, same basket sizes": 0.8120261677104671,
+   "ratio if groups were random (median)": 0.8452544242502443,
+   "chance of a gap this large": 0.03666666666666667,
+   "highest rate vs today": 0.4611303082513818,
    "verdict": "gap explained by basket size"
   },
   {
    "attribute": "income level",
    "groups": 11,
    "fewest households in a group": 11,
-   "honest sessions": 24075,
-   "lowest group rate": 0.030142574246024647,
-   "highest group rate": 0.050688741220065385,
+   "honest sessions": 24165,
+   "lowest group rate": 0.03877517311379394,
+   "highest group rate": 0.05404752351452593,
    "most-stopped group": "Level9",
-   "four-fifths ratio": 0.5946601458331848,
-   "ratio CI low": 0.4183892643255238,
-   "ratio CI high": 0.6643234286081072,
-   "ratio, same basket sizes": 0.758173807498851,
-   "ratio if groups were random (median)": 0.6128971648558306,
-   "chance of a gap this large": 0.42,
-   "highest rate vs today": 0.42240617683387816,
-   "verdict": "gap within chance for groups this small"
+   "four-fifths ratio": 0.717427378580494,
+   "ratio CI low": 0.402710447784265,
+   "ratio CI high": 0.735430546476873,
+   "ratio, same basket sizes": 0.8043832483741912,
+   "ratio if groups were random (median)": 0.6438757571217932,
+   "chance of a gap this large": 0.78,
+   "highest rate vs today": 0.45039602928771605,
+   "verdict": "gap explained by basket size"
   }
  ],
  "fairness_groups": [
   {
    "attribute": "channel",
    "group": "app",
-   "honest sessions": 25518,
-   "households": 1340,
-   "policy": 0.036759551916992185,
+   "honest sessions": 25620,
+   "households": 1341,
+   "policy": 0.042219721721567835,
    "today": 0.12000000000000001
   },
   {
    "attribute": "channel",
    "group": "handset",
-   "honest sessions": 19441,
+   "honest sessions": 19501,
    "households": 1040,
-   "policy": 0.03828123176644438,
+   "policy": 0.042931604057261395,
    "today": 0.12000000000000001
   },
   {
    "attribute": "new SmartShop user (<5 sessions)",
    "group": "False",
-   "honest sessions": 43041,
-   "households": 2144,
-   "policy": 0.0373840463435995,
+   "honest sessions": 43199,
+   "households": 2146,
+   "policy": 0.04228870686273687,
    "today": 0.12000000000000001
   },
   {
    "attribute": "new SmartShop user (<5 sessions)",
    "group": "True",
-   "honest sessions": 1918,
-   "households": 693,
-   "policy": 0.0381694128854983,
+   "honest sessions": 1922,
+   "households": 695,
+   "policy": 0.047892108982233346,
    "today": 0.12000000000000001
   },
   {
    "attribute": "evening peak",
    "group": "0.0",
-   "honest sessions": 31718,
-   "households": 2329,
-   "policy": 0.03746373276201013,
+   "honest sessions": 31827,
+   "households": 2332,
+   "policy": 0.04261427968898329,
    "today": 0.12000000000000001
   },
   {
    "attribute": "evening peak",
    "group": "1.0",
-   "honest sessions": 13241,
-   "households": 2026,
-   "policy": 0.037306925220437645,
+   "honest sessions": 13294,
+   "households": 2028,
+   "policy": 0.04231937728042362,
    "today": 0.12000000000000001
   },
   {
    "attribute": "age group",
    "group": "Age Group1",
-   "honest sessions": 1427,
+   "honest sessions": 1430,
    "households": 46,
-   "policy": 0.029510174051290035,
+   "policy": 0.03803556591206741,
    "today": 0.12000000000000001
   },
   {
    "attribute": "age group",
    "group": "Age Group2",
-   "honest sessions": 3752,
+   "honest sessions": 3785,
    "households": 142,
-   "policy": 0.044523421138736495,
+   "policy": 0.05008561648478766,
    "today": 0.12000000000000001
   },
   {
    "attribute": "age group",
    "group": "Age Group3",
-   "honest sessions": 6105,
+   "honest sessions": 6126,
    "households": 194,
-   "policy": 0.0451276127223737,
+   "policy": 0.04930603496126895,
    "today": 0.12000000000000001
   },
   {
    "attribute": "age group",
    "group": "Age Group4",
-   "honest sessions": 9413,
+   "honest sessions": 9432,
    "households": 288,
-   "policy": 0.0375630749898455,
+   "policy": 0.04188247459403251,
    "today": 0.12000000000000001
   },
   {
    "attribute": "age group",
    "group": "Age Group5",
-   "honest sessions": 1673,
+   "honest sessions": 1682,
    "households": 59,
-   "policy": 0.031437315393514256,
+   "policy": 0.03671319237090595,
    "today": 0.12000000000000001
   },
   {
    "attribute": "age group",
    "group": "Age Group6",
-   "honest sessions": 1826,
+   "honest sessions": 1831,
    "households": 72,
-   "policy": 0.02758123275604679,
+   "policy": 0.0345237195493141,
    "today": 0.12000000000000001
   },
   {
    "attribute": "household size",
    "group": "1",
-   "honest sessions": 7983,
+   "honest sessions": 7997,
    "households": 255,
-   "policy": 0.03450727678633191,
+   "policy": 0.041690663928116906,
    "today": 0.12000000000000001
   },
   {
    "attribute": "household size",
    "group": "2",
-   "honest sessions": 9218,
+   "honest sessions": 9260,
    "households": 318,
-   "policy": 0.03502449098322116,
+   "policy": 0.03982851858630635,
    "today": 0.12000000000000001
   },
   {
    "attribute": "household size",
    "group": "3",
-   "honest sessions": 3333,
+   "honest sessions": 3347,
    "households": 109,
-   "policy": 0.046283246337045225,
+   "policy": 0.05050600922732281,
    "today": 0.12000000000000001
   },
   {
    "attribute": "household size",
    "group": "4",
-   "honest sessions": 1733,
+   "honest sessions": 1736,
    "households": 53,
-   "policy": 0.04843417683161314,
+   "policy": 0.050158193690336486,
    "today": 0.12000000000000001
   },
   {
    "attribute": "household size",
    "group": "5+",
-   "honest sessions": 1929,
+   "honest sessions": 1946,
    "households": 66,
-   "policy": 0.054266624022784093,
+   "policy": 0.05533563699016582,
    "today": 0.12000000000000001
   },
   {
    "attribute": "income level",
    "group": "Level1",
-   "honest sessions": 1978,
+   "honest sessions": 1994,
    "households": 61,
-   "policy": 0.03601526581819562,
+   "policy": 0.03877517311379395,
    "today": 0.12000000000000001
   },
   {
    "attribute": "income level",
    "group": "Level10",
-   "honest sessions": 306,
+   "honest sessions": 310,
    "households": 11,
-   "policy": 0.04145364812543628,
+   "policy": 0.04983061220345306,
    "today": 0.12000000000000001
   },
   {
    "attribute": "income level",
    "group": "Level12",
-   "honest sessions": 516,
+   "honest sessions": 523,
    "households": 11,
-   "policy": 0.03385081417744532,
+   "policy": 0.040352065609239124,
    "today": 0.12000000000000001
   },
   {
    "attribute": "income level",
    "group": "Level2",
-   "honest sessions": 1975,
+   "honest sessions": 1983,
    "households": 74,
-   "policy": 0.03576260210130128,
+   "policy": 0.042005129015477254,
    "today": 0.12000000000000001
   },
   {
    "attribute": "income level",
    "group": "Level3",
-   "honest sessions": 2567,
+   "honest sessions": 2578,
    "households": 77,
-   "policy": 0.03462038581129011,
+   "policy": 0.04356529511956211,
    "today": 0.12000000000000001
   },
   {
    "attribute": "income level",
    "group": "Level4",
-   "honest sessions": 4838,
+   "honest sessions": 4857,
    "households": 172,
-   "policy": 0.03979133321191698,
+   "policy": 0.0454274954938917,
    "today": 0.12000000000000001
   },
   {
    "attribute": "income level",
    "group": "Level5",
-   "honest sessions": 5804,
+   "honest sessions": 5816,
    "households": 192,
-   "policy": 0.03840266134497709,
+   "policy": 0.042620238155281265,
    "today": 0.12000000000000001
   },
   {
    "attribute": "income level",
    "group": "Level6",
-   "honest sessions": 2852,
+   "honest sessions": 2856,
    "households": 96,
-   "policy": 0.04024400966018465,
+   "policy": 0.0431935668087868,
    "today": 0.12000000000000001
   },
   {
    "attribute": "income level",
    "group": "Level7",
-   "honest sessions": 996,
+   "honest sessions": 1000,
    "households": 34,
-   "policy": 0.030142574246024643,
+   "policy": 0.03975975937989662,
    "today": 0.12000000000000001
   },
   {
    "attribute": "income level",
    "group": "Level8",
-   "honest sessions": 1311,
+   "honest sessions": 1314,
    "households": 38,
-   "policy": 0.049724938842755674,
+   "policy": 0.05028751655019615,
    "today": 0.12000000000000001
   },
   {
    "attribute": "income level",
    "group": "Level9",
-   "honest sessions": 932,
+   "honest sessions": 934,
    "households": 30,
-   "policy": 0.050688741220065385,
+   "policy": 0.05404752351452593,
    "today": 0.12000000000000001
   }
  ],
@@ -1373,48 +1488,48 @@
  "measurement": [
   {
    "method": "naive (average of rescans x sessions)",
-   "bias": 2.660164736834734,
-   "error": 0.15796799388401447
+   "bias": 2.98599708454399,
+   "error": 0.14752898242000137
   },
   {
    "method": "inverse-probability weighted",
-   "bias": -0.007038273533310657,
-   "error": 0.09270201502574164
+   "bias": -0.011204161691050318,
+   "error": 0.08749489713869649
   },
   {
    "method": "random floor only",
-   "bias": -0.0128127665733474,
-   "error": 0.1476614358098401
+   "bias": -0.0133999171601078,
+   "error": 0.1511894777830018
   }
  ],
  "trial": {
   "effect": 0.12,
   "sessions_per_store": 20000,
-  "measurement_cv": 0.22711557706124966,
+  "measurement_cv": 0.232541999229207,
   "sizing": [
    {
     "between-store CV": 0.15,
-    "total CV": 0.2721791420073633,
-    "rho=0.0": 81,
-    "rho=0.5": 61,
-    "rho=0.7": 42,
-    "rho=0.85": 23
+    "total CV": 0.27672329393369927,
+    "rho=0.0": 84,
+    "rho=0.5": 63,
+    "rho=0.7": 43,
+    "rho=0.85": 24
    },
    {
     "between-store CV": 0.25,
-    "total CV": 0.33775950814723843,
-    "rho=0.0": 125,
-    "rho=0.5": 94,
-    "rho=0.7": 64,
-    "rho=0.85": 35
+    "total CV": 0.3414319572118528,
+    "rho=0.0": 128,
+    "rho=0.5": 96,
+    "rho=0.7": 65,
+    "rho=0.85": 36
    },
    {
     "between-store CV": 0.35,
-    "total CV": 0.41723073393970445,
-    "rho=0.0": 190,
-    "rho=0.5": 143,
-    "rho=0.7": 97,
-    "rho=0.85": 53
+    "total CV": 0.42020921147151985,
+    "rho=0.0": 193,
+    "rho=0.5": 145,
+    "rho=0.7": 99,
+    "rho=0.85": 54
    }
   ]
  },
@@ -1427,13 +1542,19 @@
    "recovery multiple": 5.424248812921531,
    "honest stops reduction": 0.6935659153961028,
    "threshold: loss remaining": 35763.23864320908,
-   "randomised no cap: loss remaining": 35629.758215937974,
-   "randomising gain vs threshold": 0.0037323361176198055,
+   "randomised no cap: loss remaining": 35629.75821592863,
+   "randomising gain vs threshold": 0.003732336117881041,
    "static evaluation overstates recovery by": 0.35103640365125366,
    "adaptive stealing, today": 0.6630252100840336,
    "adaptive stealing, recommended": 0.7672268907563026,
-   "minutes": 0.8213810960451762,
-   "today: loss before rescans": 42834.95275957288
+   "minutes": 1.7270068844159445,
+   "today: loss before rescans": 42834.95275957288,
+   "model retrained": true,
+   "v1.1: loss remaining": 33471.44238782136,
+   "v1.1: loss reduction": 0.19615490005758307,
+   "v1.1: recovery multiple": 6.88246938550667,
+   "v1.1: honest stops reduction": 0.6480224805826189,
+   "deliberate value in top 12% of scores": 0.478048583530701
   },
   {
    "scenario": "Half as much theft",
@@ -1448,8 +1569,14 @@
    "static evaluation overstates recovery by": 0.24090086013630163,
    "adaptive stealing, today": 0.4613445378151261,
    "adaptive stealing, recommended": 0.6092436974789915,
-   "minutes": 0.8153105457623799,
-   "today: loss before rescans": 27364.345789487405
+   "minutes": 1.4415472745895386,
+   "today: loss before rescans": 27364.345789487405,
+   "model retrained": true,
+   "v1.1: loss remaining": 23643.43966008566,
+   "v1.1: loss reduction": 0.10818800596796185,
+   "v1.1: recovery multiple": 4.627486500389571,
+   "v1.1: honest stops reduction": 0.6392243470899532,
+   "deliberate value in top 12% of scores": 0.39359404672153936
   },
   {
    "scenario": "60% more theft",
@@ -1459,13 +1586,19 @@
    "recovery multiple": 6.4285229618823845,
    "honest stops reduction": 0.6947294138830222,
    "threshold: loss remaining": 45509.18075436955,
-   "randomised no cap: loss remaining": 45424.61073105837,
-   "randomising gain vs threshold": 0.0018583068714780326,
+   "randomised no cap: loss remaining": 45424.61073106772,
+   "randomising gain vs threshold": 0.0018583068712725304,
    "static evaluation overstates recovery by": 0.37370599771991664,
    "adaptive stealing, today": 0.7747899159663866,
    "adaptive stealing, recommended": 0.83109243697479,
-   "minutes": 0.8263364672660828,
-   "today: loss before rescans": 56989.2985018089
+   "minutes": 1.8739924828211467,
+   "today: loss before rescans": 56989.2985018089,
+   "model retrained": true,
+   "v1.1: loss remaining": 43058.31497551462,
+   "v1.1: loss reduction": 0.22394358108657264,
+   "v1.1: recovery multiple": 8.246420056543931,
+   "v1.1: honest stops reduction": 0.655427834247317,
+   "deliberate value in top 12% of scores": 0.5087268659156527
   },
   {
    "scenario": "50% more honest mistakes",
@@ -1480,8 +1613,14 @@
    "static evaluation overstates recovery by": 0.302227757594163,
    "adaptive stealing, today": 0.6630252100840336,
    "adaptive stealing, recommended": 0.7747899159663866,
-   "minutes": 0.871657911936442,
-   "today: loss before rescans": 47837.227927578744
+   "minutes": 1.7260639389355978,
+   "today: loss before rescans": 47837.227927578744,
+   "model retrained": true,
+   "v1.1: loss remaining": 38430.71415284348,
+   "v1.1: loss reduction": 0.17197046008891215,
+   "v1.1: recovery multiple": 6.012513659818067,
+   "v1.1: honest stops reduction": 0.6524688891602215,
+   "deliberate value in top 12% of scores": 0.4553749403677105
   },
   {
    "scenario": "Weaker signals (deletions say nothing)",
@@ -1496,8 +1635,14 @@
    "static evaluation overstates recovery by": 0.3323213632137154,
    "adaptive stealing, today": 0.6630252100840336,
    "adaptive stealing, recommended": 0.7739495798319328,
-   "minutes": 0.870003898938497,
-   "today: loss before rescans": 42834.95275957288
+   "minutes": 1.8336717208226523,
+   "today: loss before rescans": 42834.95275957288,
+   "model retrained": true,
+   "v1.1: loss remaining": 33450.93311966352,
+   "v1.1: loss reduction": 0.1966474475409291,
+   "v1.1: recovery multiple": 6.770797196175964,
+   "v1.1: honest stops reduction": 0.6455386885688021,
+   "deliberate value in top 12% of scores": 0.49731537794492736
   },
   {
    "scenario": "Cautious thieves (penalty $100)",
@@ -1512,8 +1657,14 @@
    "static evaluation overstates recovery by": 0.4694132269009974,
    "adaptive stealing, today": 0.3907563025210084,
    "adaptive stealing, recommended": 0.7,
-   "minutes": 0.8670515298843384,
-   "today: loss before rescans": 41365.52115243002
+   "minutes": 1.8351004481315614,
+   "today: loss before rescans": 41365.52115243002,
+   "model retrained": true,
+   "v1.1: loss remaining": 33429.671416138255,
+   "v1.1: loss reduction": 0.1685395910714107,
+   "v1.1: recovery multiple": 5.726021149894323,
+   "v1.1: honest stops reduction": 0.6451322054335153,
+   "deliberate value in top 12% of scores": 0.4509532927795897
   },
   {
    "scenario": "Bold thieves (penalty $10)",
@@ -1528,8 +1679,14 @@
    "static evaluation overstates recovery by": 0.19567763039105857,
    "adaptive stealing, today": 0.7815126050420168,
    "adaptive stealing, recommended": 0.7873949579831933,
-   "minutes": 0.8558758695920309,
-   "today: loss before rescans": 43044.65275957288
+   "minutes": 1.740210505326589,
+   "today: loss before rescans": 43044.65275957288,
+   "model retrained": true,
+   "v1.1: loss remaining": 33958.95777495779,
+   "v1.1: loss reduction": 0.18842977792763216,
+   "v1.1: recovery multiple": 7.43270588361167,
+   "v1.1: honest stops reduction": 0.6548485446274385,
+   "deliberate value in top 12% of scores": 0.48194638976451315
   },
   {
    "scenario": "Thieves overrate detection (0.9)",
@@ -1539,29 +1696,41 @@
    "recovery multiple": 4.832817647385537,
    "honest stops reduction": 0.6927084024197487,
    "threshold: loss remaining": 36529.84831783408,
-   "randomised no cap: loss remaining": 36168.69774879629,
-   "randomising gain vs threshold": 0.009886451372465244,
+   "randomised no cap: loss remaining": 36168.69774879317,
+   "randomising gain vs threshold": 0.009886451372550398,
    "static evaluation overstates recovery by": 0.5150326792032713,
    "adaptive stealing, today": 0.565546218487395,
    "adaptive stealing, recommended": 0.7638655462184873,
-   "minutes": 0.8458337267239888,
-   "today: loss before rescans": 42492.35615243002
+   "minutes": 1.7459786097208658,
+   "today: loss before rescans": 42492.35615243002,
+   "model retrained": true,
+   "v1.1: loss remaining": 33631.17409695578,
+   "v1.1: loss reduction": 0.18578741731773163,
+   "v1.1: recovery multiple": 6.05195566209654,
+   "v1.1: honest stops reduction": 0.6463269428428933,
+   "deliberate value in top 12% of scores": 0.45755741247720627
   },
   {
    "scenario": "Opportunists easily deterred",
    "today: loss remaining": 39124.091116355536,
-   "recommended: loss remaining": 35985.87777973776,
-   "loss reduction": 0.08021178887669711,
-   "recovery multiple": 5.587018184346631,
+   "recommended: loss remaining": 35985.877779715964,
+   "loss reduction": 0.08021178887725433,
+   "recovery multiple": 5.587018184365773,
    "honest stops reduction": 0.6878176419805779,
    "threshold: loss remaining": 35239.230405167415,
-   "randomised no cap: loss remaining": 35178.909649228175,
-   "randomising gain vs threshold": 0.0017117500934524799,
+   "randomised no cap: loss remaining": 35178.90964920326,
+   "randomising gain vs threshold": 0.0017117500941594699,
    "static evaluation overstates recovery by": 0.29140824048859515,
    "adaptive stealing, today": 0.6630252100840336,
    "adaptive stealing, recommended": 0.7680672268907563,
-   "minutes": 0.841705874602,
-   "today: loss before rescans": 40262.951733931855
+   "minutes": 1.4725976546605428,
+   "today: loss before rescans": 40262.951733931855,
+   "model retrained": true,
+   "v1.1: loss remaining": 32993.920210881624,
+   "v1.1: loss reduction": 0.15668532432466498,
+   "v1.1: recovery multiple": 6.995569870530133,
+   "v1.1: honest stops reduction": 0.6401615537186066,
+   "deliberate value in top 12% of scores": 0.46691983095628636
   },
   {
    "scenario": "Partial checks see concealed items (50%)",
@@ -1571,18 +1740,112 @@
    "recovery multiple": 4.7739341492932645,
    "honest stops reduction": 0.6939667446304715,
    "threshold: loss remaining": 35770.04753534242,
-   "randomised no cap: loss remaining": 35340.87200910032,
-   "randomising gain vs threshold": 0.011998181602024816,
+   "randomised no cap: loss remaining": 35340.87200910655,
+   "randomising gain vs threshold": 0.011998181601850733,
    "static evaluation overstates recovery by": 0.3537466512421026,
    "adaptive stealing, today": 0.6630252100840336,
    "adaptive stealing, recommended": 0.7663865546218488,
-   "minutes": 0.856773066520691,
-   "today: loss before rescans": 42834.95275957288
+   "minutes": 1.5686047275861104,
+   "today: loss before rescans": 42834.95275957288,
+   "model retrained": true,
+   "v1.1: loss remaining": 33018.8091689386,
+   "v1.1: loss reduction": 0.2030468966368013,
+   "v1.1: recovery multiple": 6.1015181371112455,
+   "v1.1: honest stops reduction": 0.648513394328281,
+   "deliberate value in top 12% of scores": 0.4946199052751071
+  },
+  {
+   "scenario": "Barcode switching: half of theft (model retrained)",
+   "today: loss remaining": 38328.28815327565,
+   "recommended: loss remaining": 34860.04292415771,
+   "loss reduction": 0.09048787191455976,
+   "recovery multiple": 4.271413277056912,
+   "honest stops reduction": 0.6925860653477575,
+   "threshold: loss remaining": 33941.067712191405,
+   "randomised no cap: loss remaining": 33804.14547396552,
+   "randomising gain vs threshold": 0.004034116999115711,
+   "static evaluation overstates recovery by": 0.2858901336620796,
+   "adaptive stealing, today": 0.6201680672268908,
+   "adaptive stealing, recommended": 0.7579831932773109,
+   "minutes": 1.6188749551773072,
+   "today: loss before rescans": 39653.44225199712,
+   "model retrained": true,
+   "v1.1: loss remaining": 32379.924303538784,
+   "v1.1: loss reduction": 0.15519513488181969,
+   "v1.1: recovery multiple": 5.232738168892512,
+   "v1.1: honest stops reduction": 0.6458180995275302,
+   "deliberate value in top 12% of scores": 0.4564759000669442
+  },
+  {
+   "scenario": "Barcode switching: half of theft (model not retrained)",
+   "today: loss remaining": 38328.28815327565,
+   "recommended: loss remaining": 34962.50224743344,
+   "loss reduction": 0.08781466817360484,
+   "recovery multiple": 4.167446005067948,
+   "honest stops reduction": 0.6907641485474494,
+   "threshold: loss remaining": 34305.907514733066,
+   "randomised no cap: loss remaining": 34163.92698066459,
+   "randomising gain vs threshold": 0.004138661366340557,
+   "static evaluation overstates recovery by": 0.3007686577044495,
+   "adaptive stealing, today": 0.6201680672268908,
+   "adaptive stealing, recommended": 0.7563025210084033,
+   "minutes": 0.8751942038536071,
+   "today: loss before rescans": 39653.44225199712,
+   "model retrained": false,
+   "v1.1: loss remaining": 32910.15152645432,
+   "v1.1: loss reduction": 0.1413612996529896,
+   "v1.1: recovery multiple": 4.97294154857415,
+   "v1.1: honest stops reduction": 0.6407952754913654,
+   "deliberate value in top 12% of scores": 0.4476227122513078
+  },
+  {
+   "scenario": "Barcode switching: all theft (model retrained)",
+   "today: loss remaining": 34932.853415614154,
+   "recommended: loss remaining": 33085.85282525622,
+   "loss reduction": 0.05287288067720142,
+   "recovery multiple": 3.215111651077666,
+   "honest stops reduction": 0.684004329750092,
+   "threshold: loss remaining": 32729.27365490082,
+   "randomised no cap: loss remaining": 32498.294712933188,
+   "randomising gain vs threshold": 0.007057258416519829,
+   "static evaluation overstates recovery by": 0.2991697487999343,
+   "adaptive stealing, today": 0.5663865546218487,
+   "adaptive stealing, recommended": 0.7369747899159664,
+   "minutes": 1.4030258218447367,
+   "today: loss before rescans": 36380.88193652092,
+   "model retrained": true,
+   "v1.1: loss remaining": 31953.15944177092,
+   "v1.1: loss reduction": 0.0852977550500178,
+   "v1.1: recovery multiple": 3.6896871102140927,
+   "v1.1: honest stops reduction": 0.6293239280273584,
+   "deliberate value in top 12% of scores": 0.38933771140698203
+  },
+  {
+   "scenario": "Barcode switching: all theft (model not retrained)",
+   "today: loss remaining": 34932.853415614154,
+   "recommended: loss remaining": 33426.42999328297,
+   "loss reduction": 0.04312340032486017,
+   "recovery multiple": 2.9653688712874637,
+   "honest stops reduction": 0.6866014978982912,
+   "threshold: loss remaining": 33369.689307808076,
+   "randomised no cap: loss remaining": 33032.752938371385,
+   "randomising gain vs threshold": 0.010097078409353144,
+   "static evaluation overstates recovery by": 0.19266195195901736,
+   "adaptive stealing, today": 0.5663865546218487,
+   "adaptive stealing, recommended": 0.7487394957983193,
+   "minutes": 0.9787173668543497,
+   "today: loss before rescans": 36380.88193652092,
+   "model retrained": false,
+   "v1.1: loss remaining": 32957.77682397408,
+   "v1.1: loss reduction": 0.05653922879249418,
+   "v1.1: recovery multiple": 3.1755418742692303,
+   "v1.1: honest stops reduction": 0.6305885854507277,
+   "deliberate value in top 12% of scores": 0.3566483916520025
   }
  ],
  "weekly_job": {
-  "run_at": "2026-10-27T13:35:08.826506+00:00",
-  "candidate": "20261027T133508Z-700821e",
+  "run_at": "2026-10-28T10:44:01.849857+00:00",
+  "candidate": "20261028T104401Z-e85bae9",
   "published": true,
   "checks": {
    "enough labels": {
@@ -1591,7 +1854,7 @@
     "pass": true
    },
    "budget": {
-    "value": 2.1892515134069868e-08,
+    "value": 2.1892516910426707e-08,
     "rule": "abs <= 0.02",
     "pass": true
    },
@@ -1601,7 +1864,7 @@
     "pass": true
    },
    "channel parity": {
-    "value": 1.0293525368233032,
+    "value": 1.010172376170564,
     "rule": "<= or too few 1.25",
     "pass": true
    },
@@ -1616,60 +1879,60 @@
     "pass": true
    },
    "score sanity": {
-    "value": 0.9970330946114166,
+    "value": 1.0,
     "rule": ">= 0.7",
     "pass": true
    }
   },
   "drift": [
    {
-    "feature": "mean_unit_price",
-    "psi": 0.02178593453367739,
+    "feature": "scanned_units",
+    "psi": 0.0,
     "status": "ok"
    },
    {
     "feature": "scanned_value",
-    "psi": 0.009966395304185298,
-    "status": "ok"
-   },
-   {
-    "feature": "m_delete_rate",
-    "psi": 0.006551718601782716,
-    "status": "ok"
-   },
-   {
-    "feature": "hr_share_gap",
-    "psi": 0.006521959863154228,
+    "psi": 0.0,
     "status": "ok"
    },
    {
     "feature": "n_products",
-    "psi": 0.004910455605219125,
+    "psi": 0.0,
     "status": "ok"
    },
    {
-    "feature": "m_hr_share",
-    "psi": 0.004363894995475853,
+    "feature": "n_deletes",
+    "psi": 0.0,
     "status": "ok"
    },
    {
-    "feature": "scanned_units",
-    "psi": 0.00430944732779756,
+    "feature": "delete_rate",
+    "psi": 0.0,
     "status": "ok"
    },
    {
-    "feature": "m_avg_units",
-    "psi": 0.00407050971869045,
+    "feature": "duration_min",
+    "psi": 0.0,
     "status": "ok"
    },
    {
-    "feature": "prior_full_found",
-    "psi": 0.0038508211518544595,
+    "feature": "min_per_unit",
+    "psi": 0.0,
     "status": "ok"
    },
    {
-    "feature": "late_share",
-    "psi": 0.003747674887577658,
+    "feature": "mean_unit_price",
+    "psi": 0.0,
+    "status": "ok"
+   },
+   {
+    "feature": "hr_units",
+    "psi": 0.0,
+    "status": "ok"
+   },
+   {
+    "feature": "hr_value_share",
+    "psi": 0.0,
     "status": "ok"
    }
   ]
