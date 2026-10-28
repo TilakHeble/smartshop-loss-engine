@@ -11,7 +11,7 @@ needs no data or secrets.
    `dashboards/app.py`. Under **Advanced settings**, choose Python 3.12.
 4. **Deploy.** Streamlit installs `dashboards/requirements.txt` (streamlit, pandas, altair), which
    sits next to the app, so it does not try to install the full project.
-5. Copy the app URL into the README (the "Live dashboard" link at the top).
+5. The live app: <https://smartshop-loss-engine.streamlit.app/> (linked at the top of the README).
 
 To refresh it after new results: `make report` (rewrites the snapshot), commit, push. The app
 redeploys itself.

@@ -1,6 +1,6 @@
 # SmartShop Loss Engine
 
-[![ci](https://github.com/TilakHeble/smartshop-loss-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/TilakHeble/smartshop-loss-engine/actions/workflows/ci.yml)
+[![ci](https://github.com/TilakHeble/smartshop-loss-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/TilakHeble/smartshop-loss-engine/actions/workflows/ci.yml) [![Streamlit app](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://smartshop-loss-engine.streamlit.app/)
 
 **Which SmartShop sessions should be rescanned, and which items checked, so that each minute of colleague time recovers the most loss while honest shoppers are stopped as rarely as possible?**
 
@@ -10,7 +10,7 @@ It is the companion to the [Nectar Offer Engine](https://github.com/TilakHeble/n
 
 > Status: **v1 complete (weeks 1–10).** Calibrated simulator, risk model, rescan game, trust, unbiased loss measurement, a decision API in Docker with a gated weekly job, a Streamlit dashboard, a full fairness check, a [model card](docs/model_card.md) with a data-protection assessment, and a [business case](docs/business_case.md) with a store-trial design. 47 dbt data tests and 77 Python tests run in CI on every push, which also builds the API image and smoke-tests the running container.
 >
-> **Read first:** [business case](docs/business_case.md) (2 pages) · [model card](docs/model_card.md) · dashboard: `make dashboard` (deploy steps in [docs/deploy.md](docs/deploy.md))
+> **Read first:** [business case](docs/business_case.md) (2 pages) · [model card](docs/model_card.md) · **[live dashboard](https://smartshop-loss-engine.streamlit.app/)**
 
 ## What makes it different
 
@@ -349,7 +349,7 @@ make docker && make smoke   # build, start on ./artifacts, smoke-test
 
 ![Trial sizing](reports/figures/21_trial_sizing.png)
 
-**Dashboard** (`make dashboard`): headline and weekly trends, where rescans go and what they find, the policy curve with a single-decision explorer, rescans by hour per store, fairness by group, loss measurement, an interactive trial-size calculator, stress tests, and the latest weekly job's gates and drift. It reads only an aggregate snapshot (no member, household or basket identifiers), so it can be deployed publicly; [docs/deploy.md](docs/deploy.md) has the steps.
+**[Live dashboard](https://smartshop-loss-engine.streamlit.app/)** (or `make dashboard` locally): headline and weekly trends, where rescans go and what they find, the policy curve with a single-decision explorer, rescans by hour per store, fairness by group, loss measurement, an interactive trial-size calculator, stress tests, and the latest weekly job's gates and drift. It reads only an aggregate snapshot (no member, household or basket identifiers), so it can be deployed publicly; [docs/deploy.md](docs/deploy.md) has the steps.
 
 **Model card** ([docs/model_card.md](docs/model_card.md)) includes a data-protection assessment under UK GDPR as amended by the Data (Use and Access) Act 2025: DPIA, lawful basis (crime prevention is now a recognised legitimate interest; honest-mistake detection still needs a balancing test), automated-decision safeguards, minimisation, retention and rights.
 
