@@ -47,7 +47,7 @@ The served model leaves out the basket-gap feature, which would need the whole b
 
 ## Cancelled sessions (v1.2)
 
-A shopper can cancel SmartShop part-way and pay at a till. Under today's rules, a shopper told "you've been selected" could cancel and keep hidden items; in simulation that halves v1.1's gain (−20% to −11% loss vs today) and biases the loss estimate by −38%, and it hurts targeting more than random rescans because more of the shoppers asked have something to hide. The served rules close it: once a rescan is requested the session is locked; a cancellation is treated as an exit and gets the same decision; a cancellation the **app itself** logs as a crash or flat battery gets only the 2% random floor. With the rules closed, v1.1 is back to −20% (17–22% across seven sets of assumptions), and genuine cancellers are asked for a rescan no more often than other honest shoppers (3.2% vs 4.1%). Cancelling is never used as a risk feature. The crash flag must never be settable from anything the shopper says.
+The rescan decision is made when the shopper scans the till barcode; after that the session cannot be cancelled. Before it, a shopper can cancel SmartShop and pay at a staffed till. Under today's rules that skips the decision, so a shopper with hidden items can avoid any chance of a rescan; in simulation that cuts v1.1's gain from −20% to −12% loss vs today and biases the loss estimate by −34%, and it costs targeting more than random rescans because the sessions that slip away are the ones it would most likely have rescanned. The served rules close it: a cancellation is treated as an exit and gets the same decision, scored on the scan log so far; a cancellation the **app itself** logs as a crash or flat battery gets only the 2% random floor. With the rules closed, v1.1 is back to −20% (16–21% across seven sets of assumptions), and genuine cancellers are asked for a rescan no more often than other honest shoppers (3.3% vs 4.1%). Cancelling is never used as a risk feature. The crash flag must never be settable from anything the shopper says.
 
 ## Fairness
 
@@ -97,7 +97,7 @@ This is a design assessment for a portfolio project, not legal advice. A real de
 - **Static store capacity.** Colleague time is held constant per period; queue-aware capacity by hour is v2.
 - **Adaptive thieves.** Detection drives the result. If thieves adapt faster or harder than assumed, the random floor and cap are the levers (stress tests cover several such cases).
 - **New methods.** A method that leaves no trace in the scan log (tested: barcode switching) weakens the gain to a few per cent until retraining catches up; the random floor still measures it.
-- **Cancellation rates are assumed.** No published figure exists for how often shoppers cancel or dodge; the conclusion holds across the seven sets of assumptions tested, but the shadow-mode pilot should measure them.
+- **Cancellation rates are assumed.** No published figure exists for how often shoppers cancel, genuinely or to skip the check; the conclusion holds across the seven sets of assumptions tested, but the shadow-mode pilot should measure them.
 
 ## Monitoring and maintenance
 

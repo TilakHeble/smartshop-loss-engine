@@ -1,9 +1,10 @@
 """v1.2: what cancelled SmartShop sessions cost, and what closing the loophole recovers.
 
-For today's random rescans and the v1.1 policy, under today's rules (a selected shopper can
-cancel and pay at a till; a mid-shop cancellation skips the exit decision) and under closed
-rules (session locked once selected; a cancellation is an exit; app-logged crashes get only the
-random floor). Same test period and colleague time as the v1.1 stress tests (one cycle, no trust).
+For today's random rescans and the v1.1 policy, under today's rules (cancelling before the till
+barcode skips the decision: pay at a staffed till) and under closed rules (a cancellation is an
+exit with the same decision; app-logged crashes get only the random floor). Under both, once the
+barcode is scanned the session cannot be cancelled. Same test period and colleague time as the
+v1.1 stress tests (one cycle, no trust).
 
 Also: whether loss can still be measured without bias from the rescans that were completed, and
 whether genuine cancellers are treated like everyone else.
@@ -36,41 +37,38 @@ N_MEASURE = 30
 
 
 def realised_estimates(g, policy, rules: str, cc: CancelConfig, seed: int) -> dict:
-    """One realisation: which sessions were cancelled, selected, rescanned; the loss estimate.
+    """One realisation: who cancelled, who was selected and rescanned; the loss estimate.
 
     The store weights each completed rescan by one over the probability it gave that session
-    (it knows that probability, not who would have dodged).
+    (it knows that probability, not who cancelled to skip the check).
     """
-    from smartshop.policy.cancel import _avoid_matrix
+    from smartshop.policy.cancel import cancel_matrix, effective_rescan, walk_matrix
     from smartshop.policy.game import responses
 
     cfg = g.cfg
     n_v, n = len(g.levels) + 1, len(g.sessions)
-    a_all = _avoid_matrix(g, cc)
+    kappa_all, walk_all = cancel_matrix(g, cc), walk_matrix(g, cc)
     p_all = np.vstack([policy(g.sessions[f"v{k}_score"].to_numpy()) for k in range(n_v)])
-    m, e, w = cc.midshop_rate, cc.app_error_share, cc.walk_away_share
-    q_eff = (1 - m) * p_all * (1 - a_all) if rules == OPEN else p_all * (1 - a_all * w)
-    choice = responses(g, None, q_matrix=q_eff)
+    choice = responses(g, None, q_matrix=effective_rescan(p_all, kappa_all, walk_all, rules))
     cols = np.arange(n)
-    p, a = p_all[choice, cols], a_all[choice, cols]
+    p, kappa, walk = p_all[choice, cols], kappa_all[choice, cols], walk_all[choice, cols]
     net_loss = g.matrix("net_loss")[choice, cols]
     missed = np.maximum(g.matrix("full_find")[choice, cols], 0) / cfg.full_detect_nonscan
     has_missing = g.matrix("nonscan_units")[choice, cols] > 0
 
     rng = np.random.default_rng(10_000 + seed)
-    u_mid, u_app, u_sel, u_av, u_walk, u_det = rng.random((6, n))
-    cancelled = u_mid < m
+    u_cancel, u_genuine, u_app, u_sel, u_walk, u_det = rng.random((6, n))
+    cancelled = u_cancel < kappa
+    genuine = cancelled & (u_genuine < cc.midshop_rate / np.maximum(kappa, 1e-12))
+    crash = genuine & (u_app < cc.app_error_share)
     if rules == OPEN:
-        decided = ~cancelled
-        p_used = p
-        dodge = u_av < a
+        decided, p_used = ~cancelled, p
     else:
         decided = np.ones(n, bool)
-        app_err = cancelled & (u_app < e)
-        p_used = np.where(app_err, np.minimum(p, cfg.status_quo_full_rate), p)
-        dodge = (u_av < a) & (u_walk < w)
+        p_used = np.where(crash, np.minimum(p, cfg.status_quo_full_rate), p)
     selected = decided & (u_sel < p_used)
-    completed = selected & ~dodge
+    walked = selected & (u_walk < walk)
+    completed = selected & ~walked
     found = completed & has_missing & (u_det < cfg.full_detect_nonscan)
     found_value = np.where(found, missed, 0.0)
     weighted = (found_value[completed] / p_used[completed]).sum() / cfg.full_detect_nonscan
@@ -78,7 +76,8 @@ def realised_estimates(g, policy, rules: str, cc: CancelConfig, seed: int) -> di
         "truth": net_loss.clip(min=0).sum(),
         "estimate": weighted,
         "selected": selected.sum(),
-        "dodged": (selected & dodge).sum(),
+        "cancelled": cancelled.sum(),
+        "walked out": walked.sum(),
     }
 
 
@@ -107,14 +106,14 @@ def run() -> tuple[pd.DataFrame, pd.DataFrame]:
     base = CancelConfig()
     worlds = {
         "Cancellations as assumed": base,
-        "Dodging half as likely": base.scaled(0.5),
-        "Dodging 1.5x as likely": base.scaled(1.5),
+        "Cancelling to skip half as likely": base.scaled(0.5),
+        "Cancelling to skip 1.5x as likely": base.scaled(1.5),
         "Fewer genuine cancellations (1%)": CancelConfig(midshop_rate=0.01),
         "More genuine cancellations (6%)": CancelConfig(midshop_rate=0.06),
-        "Nobody walks away under the lock": CancelConfig(walk_away_share=0.0),
-        "Half walk away under the lock": CancelConfig(walk_away_share=0.5),
+        "Nobody walks out when selected": CancelConfig(walk_away_when_selected=0.0),
+        "30% walk out when selected": CancelConfig(walk_away_when_selected=0.3),
     }
-    no_cancel = CancelConfig(midshop_rate=0.0, avoid_when_stealing={}, avoid_otherwise=0.0)
+    no_cancel = CancelConfig(midshop_rate=0.0, cancel_when_stealing={}, walk_away_when_selected=0.0)
     ref_today, ref_v11 = outcome(g, None, today=True), outcome(g, policy)
 
     rows = [
@@ -181,7 +180,8 @@ def run() -> tuple[pd.DataFrame, pd.DataFrame]:
                 "bias": est.estimate.mean() / est.truth.mean() - 1,
                 "error": est.estimate.std() / est.truth.mean(),
                 "rescans requested": est.selected.mean(),
-                "dodged or refused": est.dodged.mean(),
+                "cancellations": est.cancelled.mean(),
+                "walked out": est["walked out"].mean(),
             }
         )
     meas = pd.DataFrame(meas)
@@ -215,7 +215,7 @@ def main() -> None:
         "loss vs today (open rules)",
         "honest_stops",
         "genuine_cancellers_stopped",
-        "hidden_loss_in_dodged_rescans",
+        "hidden_loss_escaping_rescans",
         "colleague_hours",
         "adaptive_stealing",
     ]

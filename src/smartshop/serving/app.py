@@ -59,8 +59,8 @@ class DecideRequest(BaseModel):
     )
     ended_by: Literal["checkout", "cancelled"] = Field(
         default="checkout",
-        description="cancelled: the shopper cancelled SmartShop part-way; it is treated as an "
-        "exit and gets the same decision",
+        description="cancelled: the shopper cancelled SmartShop before scanning the till "
+        "barcode; it is treated as an exit and gets the same decision",
     )
     app_error: bool = Field(
         default=False,

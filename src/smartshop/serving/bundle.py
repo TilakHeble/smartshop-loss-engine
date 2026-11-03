@@ -136,10 +136,10 @@ class Bundle:
         ended_by: str = "checkout",
         app_error: bool = False,
     ) -> dict:
-        """One exit decision. A cancelled session is an exit too (v1.2): it gets the same
-        decision, except a cancellation the app logged as a crash or flat battery, which gets
-        only the random floor. Once a rescan is requested the session is locked: cancelling
-        does not skip it."""
+        """One exit decision, made when the shopper scans the till barcode (after which the
+        session cannot be cancelled). A session cancelled before the barcode is an exit too
+        (v1.2): it gets the same decision, scored on the scan log so far, except a cancellation
+        the app logged as a crash or flat battery, which gets only the random floor."""
         ev = events.copy()
         known = ev.product_id.isin(self.products.index)
         ev["is_high_risk"] = (

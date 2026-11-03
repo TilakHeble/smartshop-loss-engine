@@ -206,7 +206,7 @@ def test_no_cancellations_reduces_to_the_ordinary_outcome(game):
     from smartshop.policy.game import outcome, smooth_policy
 
     _, g = game
-    off = CancelConfig(midshop_rate=0.0, avoid_when_stealing={}, avoid_otherwise=0.0)
+    off = CancelConfig(midshop_rate=0.0, cancel_when_stealing={}, walk_away_when_selected=0.0)
     pol = smooth_policy(0.0, 0.02, 0.5, 0.05)
     ref, ref_today = outcome(g, pol), outcome(g, None, today=True)
     for rules in (OPEN, CLOSED):
@@ -218,21 +218,23 @@ def test_no_cancellations_reduces_to_the_ordinary_outcome(game):
         assert t["loss_remaining"] == pytest.approx(ref_today["loss_remaining"])
 
 
-def test_closing_the_loophole_stops_dodging_and_spares_crash_cancellations(game):
+def test_cancelling_before_the_till_no_longer_skips_the_check(game):
     from smartshop.policy.cancel import CLOSED, OPEN, CancelConfig, outcome_with_cancellations
     from smartshop.policy.game import smooth_policy
 
     _, g = game
-    cc = CancelConfig(midshop_rate=0.05, walk_away_share=0.0)
+    cc = CancelConfig(midshop_rate=0.05, walk_away_when_selected=0.0)
     pol = smooth_policy(0.0, 0.02, 0.5, 0.05)
     open_, closed = (outcome_with_cancellations(g, pol, r, cc) for r in (OPEN, CLOSED))
-    # with nobody walking away, the lock leaves no rescan dodged
-    assert closed["rescans_dodged_or_refused"] == pytest.approx(0.0)
-    assert open_["hidden_loss_in_dodged_rescans"] > 0
-    # dodging makes stealing more attractive, so closing it deters at least as much
+    # today's rules: a cancellation skips the decision, so hidden items escape rescans
+    assert open_["hidden_loss_escaping_rescans"] > 0
+    # closed rules: a cancellation gets the same decision; with nobody walking out, hidden items
+    # escape only when a shopper's app genuinely crashes (floor only), a small fraction
+    assert closed["hidden_loss_escaping_rescans"] < 0.1 * open_["hidden_loss_escaping_rescans"]
+    # skipping makes stealing more attractive, so closing it deters at least as much
     assert closed["adaptive_stealing"] <= open_["adaptive_stealing"] + 1e-9
-    # genuine cancellers: never asked under open rules; under closed rules app crashes get only
-    # the floor, so they are asked no more often than honest shoppers who finish
+    # genuine cancellers: never asked under today's rules; under closed rules app crashes get
+    # only the floor, so they are asked no more often than honest shoppers who finish
     assert open_["genuine_cancellers_stopped"] == 0
     rate_cancel = closed["genuine_cancellers_stopped"] / closed["genuine_cancellations"]
     rate_all = closed["honest_stops"] / (len(g) - closed["sessions_with_theft"])

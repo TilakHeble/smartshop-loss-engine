@@ -471,18 +471,18 @@ with tabs[5]:
 
 # ------------------------------------------------------------------ Cancellations
 with tabs[6]:
-    st.subheader("Cancelled sessions: genuine ones, and cancelling to dodge a rescan")
+    st.subheader("Cancelled sessions: genuine ones, and cancelling to skip the check")
     canc = d.get("cancellations")
     if not canc:
         st.info("No cancellation analysis in this snapshot.")
     else:
         st.write(
-            "A shopper can cancel SmartShop part-way and pay at a staffed till: usually a flat "
-            "battery, an app crash or a change of mind. But told \"you've been selected for a "
-            'rescan", a shopper with hidden items can also cancel and keep them. The closed '
-            "rules (v1.2) lock the session once a rescan is requested, treat a cancellation as an "
-            "exit with the same decision, and give a crash or flat battery logged by the app only "
-            "the 2% random floor."
+            "A shopper can cancel SmartShop before scanning the barcode at the till and pay at a "
+            "staffed till instead: usually a flat battery, an app crash or a change of mind. But a "
+            "shopper with hidden items can also cancel just before the till and never face any "
+            "chance of a rescan. Once the barcode is scanned the session cannot be cancelled. The "
+            "closed rules (v1.2) treat a cancellation as an exit with the same decision, and give "
+            "a crash or flat battery logged by the app only the 2% random floor."
         )
         ct = pd.DataFrame(canc["table"])
         world = st.selectbox(
@@ -509,7 +509,7 @@ with tabs[6]:
                     "arm",
                     "rules",
                     alt.Tooltip("loss_remaining:Q", format="$,.0f"),
-                    alt.Tooltip("hidden_loss_in_dodged_rescans:Q", format="$,.0f"),
+                    alt.Tooltip("hidden_loss_escaping_rescans:Q", format="$,.0f"),
                 ],
             )
             .properties(height=300),
@@ -527,34 +527,35 @@ with tabs[6]:
             f"{closed_row['loss vs today (open rules)']:.0%}",
         )
         c3.metric(
-            "Hidden loss kept by dodgers (v1.1)",
-            money(open_row["hidden_loss_in_dodged_rescans"]),
-            f"{money(closed_row['hidden_loss_in_dodged_rescans'])} under closed rules",
+            "Hidden loss that escaped a rescan (v1.1)",
+            money(open_row["hidden_loss_escaping_rescans"]),
+            f"{money(closed_row['hidden_loss_escaping_rescans'])} under closed rules",
             delta_color="off",
         )
         st.caption(
-            "The loophole hurts the risk-based policy more than random rescans: the better a "
-            "policy picks out thieves, the more of the shoppers it asks have something to hide. "
+            "The loophole costs the risk-based policy more than random rescans: the sessions that "
+            "cancel to skip the check are the ones it would most likely have rescanned. "
             "Genuine cancellers are asked for a rescan no more often than other honest shoppers, "
             "and nobody is flagged for cancelling."
         )
         m = pd.DataFrame(canc["measurement"])
         m["rules"] = m.rules.map({"open": "Today's rules", "closed": "Closed rules (v1.2)"})
-        st.markdown("**Measuring loss when rescans can be dodged**")
+        st.markdown("**Measuring loss when the check can be skipped**")
         st.dataframe(
-            m[["rules", "bias", "error", "dodged or refused"]]
+            m[["rules", "bias", "error", "cancellations", "walked out"]]
             .rename(
                 columns={
                     "bias": "bias of the weighted loss estimate",
                     "error": "typical error",
-                    "dodged or refused": "rescans dodged or walked away from",
+                    "walked out": "walked out after being selected",
                 }
             )
             .style.format(
                 {
                     "bias of the weighted loss estimate": "{:+.0%}",
                     "typical error": "{:.0%}",
-                    "rescans dodged or walked away from": "{:,.0f}",
+                    "cancellations": "{:,.0f}",
+                    "walked out after being selected": "{:,.0f}",
                 }
             ),
             hide_index=True,
