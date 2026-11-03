@@ -45,6 +45,10 @@ The served model leaves out the basket-gap feature, which would need the whole b
 
 **An unseen theft method.** Barcode switching (scanning a cheap item's barcode for an expensive one) leaves the count, pace and deletions normal, so the strongest scan-log signals vanish. With every thief switching and the model never retrained, v1.1 still leaves 5.7% less loss than today (8.5% if retrained) and 36% of deliberate loss sits in the top 12% of scores (random: 12%), because member history still points at it.
 
+## Cancelled sessions (v1.2)
+
+A shopper can cancel SmartShop part-way and pay at a till. Under today's rules, a shopper told "you've been selected" could cancel and keep hidden items; in simulation that halves v1.1's gain (−20% to −11% loss vs today) and biases the loss estimate by −38%, and it hurts targeting more than random rescans because more of the shoppers asked have something to hide. The served rules close it: once a rescan is requested the session is locked; a cancellation is treated as an exit and gets the same decision; a cancellation the **app itself** logs as a crash or flat battery gets only the 2% random floor. With the rules closed, v1.1 is back to −20% (17–22% across seven sets of assumptions), and genuine cancellers are asked for a rescan no more often than other honest shoppers (3.2% vs 4.1%). Cancelling is never used as a risk feature. The crash flag must never be settable from anything the shopper says.
+
 ## Fairness
 
 **Harm definition.** Being asked for a full rescan **when honest**. The check uses the policy as it would run (shoppers respond, trust updates) and the anonymised demographics available for 32% of households. Demographics are joined only in this check.
@@ -93,6 +97,7 @@ This is a design assessment for a portfolio project, not legal advice. A real de
 - **Static store capacity.** Colleague time is held constant per period; queue-aware capacity by hour is v2.
 - **Adaptive thieves.** Detection drives the result. If thieves adapt faster or harder than assumed, the random floor and cap are the levers (stress tests cover several such cases).
 - **New methods.** A method that leaves no trace in the scan log (tested: barcode switching) weakens the gain to a few per cent until retraining catches up; the random floor still measures it.
+- **Cancellation rates are assumed.** No published figure exists for how often shoppers cancel or dodge; the conclusion holds across the seven sets of assumptions tested, but the shadow-mode pilot should measure them.
 
 ## Monitoring and maintenance
 

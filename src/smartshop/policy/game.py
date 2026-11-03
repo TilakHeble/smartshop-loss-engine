@@ -164,14 +164,20 @@ def build_game(
 # --------------------------------------------------------------------------------------------
 
 
-def responses(g: GameData, policy, q_today: float | None = None) -> np.ndarray:
+def responses(
+    g: GameData, policy, q_today: float | None = None, q_matrix: np.ndarray | None = None
+) -> np.ndarray:
     """Each session's chosen version (0 = honest, k = LEVELS[k-1]) under a policy.
 
     q_today: a flat rescan probability for everyone (today's random rescans) instead of a policy.
+    q_matrix: the (versions x sessions) rescan chance shoppers effectively face, when it is not
+    just the policy's (for example when a rescan can be dodged by cancelling).
     """
     s, cfg = g.sessions, g.cfg
     n_v = len(g.levels) + 1
-    if q_today is not None:
+    if q_matrix is not None:
+        q = np.asarray(q_matrix, float)
+    elif q_today is not None:
         q = np.full((n_v, len(s)), q_today)
     else:
         q = np.vstack([policy(s[f"v{k}_score"].to_numpy()) for k in range(n_v)])

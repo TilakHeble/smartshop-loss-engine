@@ -57,6 +57,16 @@ class DecideRequest(BaseModel):
     draw: float | None = Field(
         default=None, ge=0, lt=1, description="testing only: fix the random draw"
     )
+    ended_by: Literal["checkout", "cancelled"] = Field(
+        default="checkout",
+        description="cancelled: the shopper cancelled SmartShop part-way; it is treated as an "
+        "exit and gets the same decision",
+    )
+    app_error: bool = Field(
+        default=False,
+        description="the app itself logged the cancellation as a crash or flat battery "
+        "(never set from anything the shopper says): random floor only",
+    )
 
 
 class DecideResponse(BaseModel):
@@ -72,6 +82,9 @@ class DecideResponse(BaseModel):
     trust_multiplier: float
     known_member: bool
     unknown_products: int
+    ended_by: Literal["checkout", "cancelled"]
+    app_error_cancellation: bool
+    session_locked: bool
     bundle_version: str
 
 
@@ -109,7 +122,7 @@ async def lifespan(_: FastAPI):
     yield
 
 
-app = FastAPI(title="SmartShop rescan decisions", version="1.1.0", lifespan=lifespan)
+app = FastAPI(title="SmartShop rescan decisions", version="1.2.0", lifespan=lifespan)
 
 
 @app.middleware("http")
@@ -182,7 +195,14 @@ def decide(req: DecideRequest) -> DecideResponse:
     events = pd.DataFrame(
         [e.model_dump() for e in req.events], columns=["t", "action", "product_id", "unit_price"]
     ).sort_values("t", kind="stable")
-    out = b.decide(req.member_id, req.duration_min, events, draw=req.draw)
+    out = b.decide(
+        req.member_id,
+        req.duration_min,
+        events,
+        draw=req.draw,
+        ended_by=req.ended_by,
+        app_error=req.app_error,
+    )
     resp = DecideResponse(
         session_id=req.session_id, bundle_version=b.manifest["bundle_version"], **out
     )

@@ -262,3 +262,44 @@ def test_v11_bundle_uses_size_adjusted_scores_and_keeps_the_budget(sim_con, tmp_
     out = loaded.decide(int(loaded.profiles.index[0]), 12.0, _events(), draw=0.5)
     assert 0 <= out["size_adjusted_score"] <= 1
     assert 0.02 <= out["rescan_probability"] <= 0.5
+
+
+def test_cancelled_sessions_are_exits_and_crashes_get_the_floor(bundle):
+    ev = _events()
+    finish = bundle.decide(3, 15.0, ev, draw=0.9)
+    cancel = bundle.decide(3, 15.0, ev, draw=0.9, ended_by="cancelled")
+    crash = bundle.decide(3, 15.0, ev, draw=0.9, ended_by="cancelled", app_error=True)
+    # cancelling is not a way around the decision
+    assert cancel["rescan_probability"] == finish["rescan_probability"]
+    # an app-logged crash gets only the random floor, never more
+    assert crash["rescan_probability"] == pytest.approx(0.02)
+    assert crash["app_error_cancellation"] and not cancel["app_error_cancellation"]
+    # a requested rescan locks the session
+    selected = bundle.decide(3, 15.0, ev, draw=0.0, ended_by="cancelled")
+    assert selected["decision"] == "full_rescan" and selected["session_locked"]
+    assert not finish["session_locked"] or finish["decision"] == "full_rescan"
+
+
+def test_api_accepts_cancellations(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from smartshop.serving import app as appmod
+
+    demo_bundle().save(tmp_path / "artifacts")
+    monkeypatch.setattr(appmod, "BUNDLE_DIR", tmp_path / "artifacts")
+    monkeypatch.setattr(appmod, "state", appmod.State())
+    body = {
+        "session_id": "c1",
+        "member_id": 2,
+        "duration_min": 6,
+        "events": _events(3, 0).to_dict("records"),
+        "ended_by": "cancelled",
+        "app_error": True,
+        "draw": 0.5,
+    }
+    with TestClient(appmod.app) as client:
+        r = client.post("/decide", json=body).json()
+        assert r["ended_by"] == "cancelled" and r["app_error_cancellation"]
+        assert r["rescan_probability"] == pytest.approx(0.02)
+        bad = client.post("/decide", json=body | {"ended_by": "walked_out"})
+        assert bad.status_code == 422

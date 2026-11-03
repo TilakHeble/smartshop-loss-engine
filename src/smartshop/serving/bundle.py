@@ -133,7 +133,13 @@ class Bundle:
         events: pd.DataFrame,
         day: int | None = None,
         draw: float | None = None,
+        ended_by: str = "checkout",
+        app_error: bool = False,
     ) -> dict:
+        """One exit decision. A cancelled session is an exit too (v1.2): it gets the same
+        decision, except a cancellation the app logged as a crash or flat battery, which gets
+        only the random floor. Once a rescan is requested the session is locked: cancelling
+        does not skip it."""
         ev = events.copy()
         known = ev.product_id.isin(self.products.index)
         ev["is_high_risk"] = (
@@ -146,6 +152,9 @@ class Bundle:
         adjusted = self.adjusted(score, sess["scanned_units"])
         trust = float(prof["trust_mult"]) if prof else 1.0
         p = self.probability(adjusted, trust)
+        crash = ended_by == "cancelled" and app_error
+        if crash:
+            p = float(self.manifest["policy"]["floor"])
         u = float(draw) if draw is not None else secrets.randbelow(10**9) / 10**9
         floor = self.manifest["policy"]["floor"]
         rescan = u < p
@@ -164,6 +173,9 @@ class Bundle:
             "look_here_first": look[:3] if rescan else [],
             "trust_multiplier": round(trust, 3),
             "known_member": prof is not None,
+            "ended_by": ended_by,
+            "app_error_cancellation": bool(crash),
+            "session_locked": bool(rescan),
             "unknown_products": int((~known).sum()),
         }
 

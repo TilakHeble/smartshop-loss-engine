@@ -4,8 +4,9 @@
     python -m smartshop.run_all --stress     # also the stress tests (~30 min more)
     python -m smartshop.run_all --from risk  # resume from a step
 
-Steps, in order: ingest, dbt, simulate, basket, risk, policy, [stress], mitigation, weekly,
-report. Each runs as its own process, exactly as the Makefile target of the same name.
+Steps, in order: ingest, dbt, simulate, basket, risk, policy, [stress], mitigation,
+cancellations, weekly, report. Each runs as its own process, as the Makefile target of the
+same name.
 """
 
 from __future__ import annotations
@@ -27,6 +28,7 @@ STEPS = {
     "policy": PY + ["smartshop.policy.search"],
     "stress": PY + ["smartshop.experiments.sensitivity"],
     "mitigation": PY + ["smartshop.reporting.mitigation"],
+    "cancellations": PY + ["smartshop.reporting.cancellations"],
     "weekly": PY + ["smartshop.pipeline.weekly"],
     "report": PY + ["smartshop.reporting.snapshot"],
 }

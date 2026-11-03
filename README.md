@@ -23,6 +23,7 @@ Same colleague time as today; test period; shoppers who learn the policy and res
 
 - **It survives being wrong.** Fourteen stress tests each change one assumption and rerun everything. Loss is 6–22% lower in every one, including a theft method the model was never designed for: barcode switching, where the scan count, pace and deletions all look normal ([v1.1](#v11-an-unseen-theft-method-and-closing-the-age-gap)).
 - **It is checked for fairness properly.** Every group of honest shoppers is stopped at under half today's rate. A check that separates real gaps from small-group chance found an age gap; scoring each session against baskets of a similar size narrows it *and* catches more.
+- **It can't be dodged by cancelling.** If a shopper told "you've been selected" could cancel and pay at a till, the policy's gain would halve (it targets thieves so well that more of those asked have something to hide). v1.2 locks the session once a rescan is requested and treats a cancellation as an exit, which restores the gain; a crash or flat battery logged by the app gets only the random floor ([v1.2](#v12-cancelled-sessions-genuine-ones-and-cancelling-to-dodge-a-rescan)).
 - **Loss stays measurable.** Averaging what targeted rescans find overstates loss about 4x; weighting each rescan by its logged probability is unbiased to within about 1%.
 - **What didn't work is reported, not hidden:** targeted partial checks (full rescans recover more per colleague-minute) and in-app "did you forget?" prompts (usually wrong).
 
@@ -70,7 +71,7 @@ More options in [Quick start](#quick-start); the decision API runs in Docker ([d
 
 # How it was built
 
-The build log, week by week. Each week reports what it found at the time, including the mistakes it caught; the [v1.1 section](#v11-an-unseen-theft-method-and-closing-the-age-gap) at the end improves on weeks 8 and 10.
+The build log, week by week. Each week reports what it found at the time, including the mistakes it caught; the [v1.1](#v11-an-unseen-theft-method-and-closing-the-age-gap) and [v1.2](#v12-cancelled-sessions-genuine-ones-and-cancelling-to-dodge-a-rescan) sections at the end improve on weeks 8 and 10.
 
 | Week | | Week | |
 |---|---|---|---|
@@ -449,6 +450,37 @@ v1.1 is the policy the API now serves (each decision returns `risk_score` and `s
 
 A middling raw score (0.49) becomes 0.70 once the session is compared with baskets of its size. Full analysis: [`notebooks/09_unseen_theft_and_size_neutral.ipynb`](notebooks/09_unseen_theft_and_size_neutral.ipynb). Produced by `python -m smartshop.experiments.sensitivity` and `python -m smartshop.reporting.mitigation`.
 
+## v1.2: cancelled sessions, genuine ones and cancelling to dodge a rescan
+
+A shopper can cancel SmartShop part-way and pay at a staffed till. Usually that is ordinary: a flat battery, an app crash, a change of mind. But told "you've been selected for a rescan", a shopper with hidden items can also cancel, pay at a till for what is on the belt, and keep the rest. Until v1.2 the project assumed every session reached the exit, so this is a gap a store would hit on day one.
+
+| | Today's rules | Closed rules (v1.2) |
+|---|---|---|
+| Cancel part-way | Pay at a till; no exit decision | Treated as an exit: the same decision |
+| Selected, then cancel | The rescan is skipped | The session is locked; a colleague completes the rescan |
+| Crash or flat battery logged *by the app* | As above | The 2% random floor only, so a genuine failure is never singled out |
+
+At a till everything on the belt is scanned, so honest mistakes are paid for; only hidden items are lost. Shoppers who steal respond to the rescan chance they effectively face, so an open loophole also invites more theft. No published figure exists for how often people cancel or dodge, so the base values are stated assumptions (3% of sessions cancelled genuinely, 40% of those logged by the app; 40–60% of selected shoppers with hidden items dodge; 15% abandon the trolley and leave under the lock), and six other worlds vary them.
+
+![Cancellation loophole](reports/figures/24_cancellation_loophole.png)
+
+| Same colleague time, base assumptions | Today's rules | Closed rules (v1.2) |
+|---|---|---|
+| Today's random rescans: loss remaining | \$42,782 | \$41,661 |
+| Policy v1.1: loss remaining | \$38,066 (−11% vs today) | **\$34,239 (−20%)** |
+| Hidden loss kept by shoppers who dodged (v1.1) | \$4,396 | \$577 (walk-aways) |
+| Genuine cancellers asked for a rescan (v1.1) | 0% | 3.2% (all honest shoppers: 4.1%) |
+| Bias of the weighted loss estimate (v1.1) | **−38%** | −6% |
+
+| Finding | Implication |
+|---|---|
+| An open loophole halves v1.1's gain (−20% to −11%), and it hurts the risk-based policy more than random rescans: the better a policy picks out thieves, the more of the shoppers it asks have something to hide, and they are the ones who dodge | Close the loophole before rolling out targeting |
+| Closed rules restore about 20% less loss than today; across all seven worlds v1.1 stays 17–22% below today with the rules closed, against 7–16% with them open | **v1.2 rules** |
+| Genuine cancellers are asked for a rescan no more often than other honest shoppers; nobody is flagged *for* cancelling, and cancellations are never a risk feature | Fair to people with a flat battery; the crash flag must come from the app's own logs, never from what the shopper says |
+| Dodged rescans make loss look 38% smaller than it is; with the lock the bias falls to 6%, from walk-aways the store logs and can report next to the estimate | Report walk-aways with the weighted loss estimate |
+
+The API accepts `ended_by: "checkout" | "cancelled"` and `app_error` on `/decide`: a cancellation gets the same decision as an exit (an app-logged crash only the floor), and the response says when the session is locked. Full analysis: [`notebooks/10_cancellations.ipynb`](notebooks/10_cancellations.ipynb). Produced by `python -m smartshop.reporting.cancellations` (about 6 minutes).
+
 ## Ground rules
 
 - **No demographics or protected characteristics** in any model; they are used only for the fairness check. Channel, time of day and tenure are not scored either (they caused unfair flags in week 5), and proxies are checked.
@@ -474,6 +506,7 @@ A middling raw score (0.49) becomes 0.70 once the session is compared with baske
 | 9 ✅ | FastAPI rescan-decision API in Docker; gated weekly pipeline |
 | 10 ✅ | Streamlit dashboard, fairness check, model card with a data-protection section, business case |
 | v1.1 ✅ | Unseen-theft stress test (barcode switching); size-neutral scores close the age gap and cut loss further |
+| v1.2 ✅ | Cancelled sessions: genuine cancellations protected, cancelling to dodge a rescan closed |
 
 **v2: after v1**: deliberate vs accidental misses, deterrence value of a rescan, queue-aware capacity, a conformal cap on honest shoppers stopped, data-driven product hotspots, a nudge experiment sized with CUPED, in-app "you might have forgotten…" prompts, scan-time camera verification.
 
@@ -513,17 +546,17 @@ On Windows (no `make`): `python -m smartshop.run_all` runs every step in order (
 │   ├── simulate/            # SimConfig (sources), simulator, rescan model, calibration
 │   ├── basket/              # observed history, masked-basket features, LightGBM model, fair evaluation
 │   ├── risk/                # observable risk features, honest selection, evaluation, fairness
-│   ├── policy/              # the rescan game, policy search, trust, targeted checks, size-neutral scores (v1.1)
+│   ├── policy/              # the rescan game, policy search, trust, targeted checks, size-neutral scores (v1.1), cancellations (v1.2)
 │   ├── experiments/         # loss measurement (inverse-probability weighting), stress tests
 │   ├── serving/             # bundle, exit-time features, FastAPI app, demo bundle, smoke test
 │   ├── monitoring/drift.py  # population stability index
 │   ├── pipeline/weekly.py   # the weekly job: rebuild, drift, release gates, atomic publish
-│   ├── reporting/           # full fairness check, trial sizing, fairness mitigation, dashboard snapshot
+│   ├── reporting/           # fairness check, trial sizing, fairness mitigation, cancellations, dashboard snapshot
 │   ├── run_all.py           # every step in order, one command (Windows-friendly)
 │   ├── warehouse.py         # connect to DuckDB, run dbt from Python
 │   └── viz.py               # chart style shared with Nectar
 ├── dbt/                     # seeds, staging, marts, 47 data tests
-├── notebooks/               # 01 EDA · 02 simulator validation · 03 basket model · 04 risk model · 05 rescan policy · 06 trust and targeting · 07 headline and stress tests · 08 fairness and trial · 09 unseen theft and size-neutral scores
+├── notebooks/               # 01 EDA · 02 simulator validation · 03 basket model · 04 risk model · 05 rescan policy · 06 trust and targeting · 07 headline and stress tests · 08 fairness and trial · 09 unseen theft and size-neutral scores · 10 cancelled sessions
 ├── models/                  # basket and risk metrics (+ model files, generated by make basket / make risk)
 ├── reports/                 # HTML export + figures
 ├── dashboards/              # Streamlit app + aggregate snapshot (deployable without the data)

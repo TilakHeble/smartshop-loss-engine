@@ -26,6 +26,7 @@
 | Unseen method (barcode switching, every thief, no retraining) | still 5.7% less loss than today |
 | Measuring loss | averaging targeted rescans overstates loss ~4x; weighting by 1/probability is unbiased (~1%) |
 | Fairness | every group stopped at under half today's rate; age ratio 0.61 → 0.69 with v1.1 |
+| Cancelling to dodge a rescan | halves the gain if allowed (−11% instead of −20%); locking the session restores it |
 | Store trial | roughly 40–100 stores per arm |
 
 ## Hard questions
@@ -41,6 +42,9 @@ Two reasons. A fixed threshold can be learned and gamed; a random draw with a fl
 
 **"How do you get training labels when rescans are targeted?"**
 Only from the random full rescans: today's 2% random full rescans, and the policy's 2% floor. Targeted rescans are a biased sample. For total loss I weight each rescan by one over the probability it had. That's inverse-probability weighting, and it's why the API logs the probability with every decision.
+
+**"What if someone just cancels SmartShop when they're told they've been selected?"**
+I tested exactly that. If they can cancel and pay at a till, they keep whatever they hid, and it halves the policy's gain. It actually hurts a smart policy more than random checks, because more of the people it picks have something to hide. So in v1.2 the session locks once a rescan is requested, and a cancellation counts as an exit with the same decision. That brings the gain back to about 20%. People with a genuine crash or flat battery (logged by the app, not claimed) only get the 2% random chance, so they're never singled out. And if dodging were allowed, the loss estimate would read 38% too low.
 
 **"Why logistic regression, not XGBoost?"**
 There were fewer than 1,000 labels in the training period. I compared candidates by repeated cross-validation and the leaders were close, so I chose the one that gives plain-English reasons a colleague can use, like "long pause between scans".

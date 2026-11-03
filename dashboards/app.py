@@ -81,6 +81,7 @@ tabs = st.tabs(
         "Fairness",
         "Measuring loss & trial",
         "Robustness",
+        "Cancellations",
         "Model health",
     ]
 )
@@ -468,8 +469,100 @@ with tabs[5]:
         "deletions look normal. 'Not retrained' uses the base world's model and policy."
     )
 
-# ------------------------------------------------------------------ Model health
+# ------------------------------------------------------------------ Cancellations
 with tabs[6]:
+    st.subheader("Cancelled sessions: genuine ones, and cancelling to dodge a rescan")
+    canc = d.get("cancellations")
+    if not canc:
+        st.info("No cancellation analysis in this snapshot.")
+    else:
+        st.write(
+            "A shopper can cancel SmartShop part-way and pay at a staffed till: usually a flat "
+            "battery, an app crash or a change of mind. But told \"you've been selected for a "
+            'rescan", a shopper with hidden items can also cancel and keep them. The closed '
+            "rules (v1.2) lock the session once a rescan is requested, treat a cancellation as an "
+            "exit with the same decision, and give a crash or flat battery logged by the app only "
+            "the 2% random floor."
+        )
+        ct = pd.DataFrame(canc["table"])
+        world = st.selectbox(
+            "Assumptions",
+            [w for w in ct.world.unique() if w != "No cancellations (reference)"],
+        )
+        cw = ct[ct.world == world].copy()
+        cw["rules"] = cw.rules.map({"open": "Today's rules", "closed": "Closed rules (v1.2)"})
+        st.altair_chart(
+            alt.Chart(cw)
+            .mark_bar()
+            .encode(
+                x=alt.X("arm:N", title=None, axis=alt.Axis(labelAngle=0)),
+                y=alt.Y("loss_remaining:Q", title="Loss remaining (test period)"),
+                color=alt.Color(
+                    "rules:N",
+                    title=None,
+                    scale=alt.Scale(
+                        domain=["Today's rules", "Closed rules (v1.2)"], range=[GREY, BLUE]
+                    ),
+                ),
+                xOffset="rules:N",
+                tooltip=[
+                    "arm",
+                    "rules",
+                    alt.Tooltip("loss_remaining:Q", format="$,.0f"),
+                    alt.Tooltip("hidden_loss_in_dodged_rescans:Q", format="$,.0f"),
+                ],
+            )
+            .properties(height=300),
+            width="stretch",
+        )
+        v = cw[cw.arm == "Policy v1.1"].set_index("rules")
+        open_row, closed_row = v.loc["Today's rules"], v.loc["Closed rules (v1.2)"]
+        c1, c2, c3 = st.columns(3)
+        c1.metric(
+            "Policy v1.1 vs today, today's rules",
+            f"{open_row['loss vs today (open rules)']:.0%}",
+        )
+        c2.metric(
+            "Policy v1.1 vs today, closed rules",
+            f"{closed_row['loss vs today (open rules)']:.0%}",
+        )
+        c3.metric(
+            "Hidden loss kept by dodgers (v1.1)",
+            money(open_row["hidden_loss_in_dodged_rescans"]),
+            f"{money(closed_row['hidden_loss_in_dodged_rescans'])} under closed rules",
+            delta_color="off",
+        )
+        st.caption(
+            "The loophole hurts the risk-based policy more than random rescans: the better a "
+            "policy picks out thieves, the more of the shoppers it asks have something to hide. "
+            "Genuine cancellers are asked for a rescan no more often than other honest shoppers, "
+            "and nobody is flagged for cancelling."
+        )
+        m = pd.DataFrame(canc["measurement"])
+        m["rules"] = m.rules.map({"open": "Today's rules", "closed": "Closed rules (v1.2)"})
+        st.markdown("**Measuring loss when rescans can be dodged**")
+        st.dataframe(
+            m[["rules", "bias", "error", "dodged or refused"]]
+            .rename(
+                columns={
+                    "bias": "bias of the weighted loss estimate",
+                    "error": "typical error",
+                    "dodged or refused": "rescans dodged or walked away from",
+                }
+            )
+            .style.format(
+                {
+                    "bias of the weighted loss estimate": "{:+.0%}",
+                    "typical error": "{:.0%}",
+                    "rescans dodged or walked away from": "{:,.0f}",
+                }
+            ),
+            hide_index=True,
+            width="stretch",
+        )
+
+# ------------------------------------------------------------------ Model health
+with tabs[7]:
     st.subheader("Latest weekly job")
     job = d.get("weekly_job")
     if not job:

@@ -199,3 +199,41 @@ def test_size_neutral_scores_remove_the_basket_size_effect():
     # and it survives a round trip through the bundle manifest
     again = SizeNeutraliser.from_dict(n.to_dict())
     assert np.allclose(again(score[:100], units[:100]), n(score[:100], units[:100]))
+
+
+def test_no_cancellations_reduces_to_the_ordinary_outcome(game):
+    from smartshop.policy.cancel import CLOSED, OPEN, CancelConfig, outcome_with_cancellations
+    from smartshop.policy.game import outcome, smooth_policy
+
+    _, g = game
+    off = CancelConfig(midshop_rate=0.0, avoid_when_stealing={}, avoid_otherwise=0.0)
+    pol = smooth_policy(0.0, 0.02, 0.5, 0.05)
+    ref, ref_today = outcome(g, pol), outcome(g, None, today=True)
+    for rules in (OPEN, CLOSED):
+        o = outcome_with_cancellations(g, pol, rules, off)
+        assert o["loss_remaining"] == pytest.approx(ref["loss_remaining"])
+        assert o["honest_stops"] == pytest.approx(ref["honest_stops"])
+        assert o["colleague_hours"] == pytest.approx(ref["colleague_hours"])
+        t = outcome_with_cancellations(g, None, rules, off, today=True)
+        assert t["loss_remaining"] == pytest.approx(ref_today["loss_remaining"])
+
+
+def test_closing_the_loophole_stops_dodging_and_spares_crash_cancellations(game):
+    from smartshop.policy.cancel import CLOSED, OPEN, CancelConfig, outcome_with_cancellations
+    from smartshop.policy.game import smooth_policy
+
+    _, g = game
+    cc = CancelConfig(midshop_rate=0.05, walk_away_share=0.0)
+    pol = smooth_policy(0.0, 0.02, 0.5, 0.05)
+    open_, closed = (outcome_with_cancellations(g, pol, r, cc) for r in (OPEN, CLOSED))
+    # with nobody walking away, the lock leaves no rescan dodged
+    assert closed["rescans_dodged_or_refused"] == pytest.approx(0.0)
+    assert open_["hidden_loss_in_dodged_rescans"] > 0
+    # dodging makes stealing more attractive, so closing it deters at least as much
+    assert closed["adaptive_stealing"] <= open_["adaptive_stealing"] + 1e-9
+    # genuine cancellers: never asked under open rules; under closed rules app crashes get only
+    # the floor, so they are asked no more often than honest shoppers who finish
+    assert open_["genuine_cancellers_stopped"] == 0
+    rate_cancel = closed["genuine_cancellers_stopped"] / closed["genuine_cancellations"]
+    rate_all = closed["honest_stops"] / (len(g) - closed["sessions_with_theft"])
+    assert rate_cancel <= rate_all + 1e-9
