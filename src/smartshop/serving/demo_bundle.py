@@ -72,6 +72,7 @@ def demo_bundle(seed: int = 0, n: int = 2000) -> Bundle:
             ).to_dict(),
         },
         "trust_rule": asdict(RECOMMENDED_TRUST),
+        "exits": {"prompt": "all", "risk_share": 0.5, "risk_cut": 0.5},
         "budget": {
             "colleague_seconds_per_session": 0.0,
             "expected_rescan_rate": 0.0,

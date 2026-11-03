@@ -134,12 +134,17 @@ class Bundle:
         day: int | None = None,
         draw: float | None = None,
         ended_by: str = "checkout",
-        app_error: bool = False,
     ) -> dict:
-        """One exit decision, made when the shopper scans the till barcode (after which the
-        session cannot be cancelled). A session cancelled before the barcode is an exit too
-        (v1.2): it gets the same decision, scored on the scan log so far, except a cancellation
-        the app logged as a crash or flat battery, which gets only the random floor."""
+        """One decision for a session that has ended.
+
+        checkout        the shopper scanned the till barcode: rescan or not (week 9, v1.1).
+        cancelled       the shopper cancelled SmartShop before the till (v1.3): no rescan; if
+                        items were scanned, a colleague near the self-scan exit gets a prompt to
+                        help (every cancellation, or only higher-risk ones, per the bundle's
+                        setting). Help, not an accusation: no reasons are shown.
+        device_failure  the handset or phone died (v1.3): resume the session on another device
+                        or at a till from the Nectar card; never a risk signal.
+        """
         ev = events.copy()
         known = ev.product_id.isin(self.products.index)
         ev["is_high_risk"] = (
@@ -151,12 +156,38 @@ class Bundle:
         score = float(self.model.predict_proba(X[self.features])[:, 1][0])
         adjusted = self.adjusted(score, sess["scanned_units"])
         trust = float(prof["trust_mult"]) if prof else 1.0
-        p = self.probability(adjusted, trust)
-        crash = ended_by == "cancelled" and app_error
-        if crash:
-            p = float(self.manifest["policy"]["floor"])
-        u = float(draw) if draw is not None else secrets.randbelow(10**9) / 10**9
         floor = self.manifest["policy"]["floor"]
+        u = float(draw) if draw is not None else secrets.randbelow(10**9) / 10**9
+        common = {
+            "risk_score": round(score, 4),
+            "size_adjusted_score": round(adjusted, 4),
+            "trust_multiplier": round(trust, 3),
+            "known_member": prof is not None,
+            "ended_by": ended_by,
+            "unknown_products": int((~known).sum()),
+        }
+        if ended_by != "checkout":
+            if ended_by == "device_failure":
+                decision, priority = "resume", None
+            else:
+                exits = self.manifest.get("exits", {})
+                high = "risk_cut" in exits and adjusted >= exits["risk_cut"]
+                priority = "high" if high else "standard"
+                wanted = exits.get("prompt", "all") == "all" or high
+                decision = "help_prompt" if sess["scanned_units"] > 0 and wanted else "no_prompt"
+                if decision == "no_prompt":
+                    priority = None
+            return {
+                "decision": decision,
+                "rescan_probability": 0.0,
+                "draw": round(u, 6),
+                "audit_sample": False,
+                "reasons": [],
+                "look_here_first": [],
+                "help_priority": priority,
+                **common,
+            }
+        p = self.probability(adjusted, trust)
         rescan = u < p
         look = []
         if prof and isinstance(prof.get("usual_high_risk"), str) and prof["usual_high_risk"]:
@@ -167,16 +198,10 @@ class Bundle:
             "rescan_probability": round(p, 4),
             "draw": round(u, 6),
             "audit_sample": bool(u < floor),
-            "risk_score": round(score, 4),
-            "size_adjusted_score": round(adjusted, 4),
             "reasons": self.reasons(X) if rescan else [],
             "look_here_first": look[:3] if rescan else [],
-            "trust_multiplier": round(trust, 3),
-            "known_member": prof is not None,
-            "ended_by": ended_by,
-            "app_error_cancellation": bool(crash),
-            "session_locked": bool(rescan),
-            "unknown_products": int((~known).sum()),
+            "help_priority": None,
+            **common,
         }
 
     # ---------- persistence ----------
@@ -321,6 +346,8 @@ def build_bundle(
     )
 
     recent = recent.assign(risk_score=raw, size_adjusted_score=score, p=p, cost_s=cost)
+    # v1.3 help prompts on cancellation: "higher-risk" = top half of sessions by adjusted score
+    exits = {"prompt": "all", "risk_share": 0.5, "risk_cut": float(np.quantile(score, 0.5))}
 
     # Drift reference: the latest cycle, i.e. what this bundle was calibrated on. Not the whole
     # training history: member-history features mature over time, so early sessions (little or
@@ -337,6 +364,7 @@ def build_bundle(
         },
         "policy": pol,
         "trust_rule": asdict(RECOMMENDED_TRUST),
+        "exits": exits,
         "budget": {
             "colleague_seconds_per_session": float(budget / len(recent)),
             "expected_rescan_rate": float(p.mean()),

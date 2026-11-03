@@ -5,7 +5,7 @@
     python -m smartshop.run_all --from risk  # resume from a step
 
 Steps, in order: ingest, dbt, simulate, basket, risk, policy, [stress], mitigation,
-cancellations, weekly, report. Each runs as its own process, as the Makefile target of the
+exits, weekly, report. Each runs as its own process, as the Makefile target of the
 same name.
 """
 
@@ -28,7 +28,7 @@ STEPS = {
     "policy": PY + ["smartshop.policy.search"],
     "stress": PY + ["smartshop.experiments.sensitivity"],
     "mitigation": PY + ["smartshop.reporting.mitigation"],
-    "cancellations": PY + ["smartshop.reporting.cancellations"],
+    "exits": PY + ["smartshop.reporting.exits"],
     "weekly": PY + ["smartshop.pipeline.weekly"],
     "report": PY + ["smartshop.reporting.snapshot"],
 }

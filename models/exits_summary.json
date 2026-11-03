@@ -1,0 +1,37 @@
+{
+ "sessions": 47314,
+ "walk_out_loss_today": 5810.2925000000005,
+ "walk_out_share_of_all_loss_today": 0.1224522300963894,
+ "handsets": [
+  {
+   "policy": "random",
+   "sessions": 20433,
+   "failures": 131,
+   "failures per 1,000 sessions": 6.411197572554202,
+   "mean point of failure (share of shop)": 0.599357548140274,
+   "no handset free": 0,
+   "min": 0.8809279107326384,
+   "max": 12.57769294768267
+  },
+  {
+   "policy": "longest on rack first",
+   "sessions": 20433,
+   "failures": 86,
+   "failures per 1,000 sessions": 4.208877795722605,
+   "mean point of failure (share of shop)": 0.7480153084510797,
+   "no handset free": 0,
+   "min": 0.5872852738217589,
+   "max": 8.270934272989772
+  },
+  {
+   "policy": "+ retire",
+   "sessions": 20433,
+   "failures": 10,
+   "failures per 1,000 sessions": 0.48940439485146575,
+   "mean point of failure (share of shop)": 0.8556730748637932,
+   "no handset free": 0,
+   "min": 0.14682131845543972,
+   "max": 0.8809279107326384
+  }
+ ]
+}

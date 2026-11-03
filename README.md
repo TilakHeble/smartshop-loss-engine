@@ -23,7 +23,7 @@ Same colleague time as today; test period; shoppers who learn the policy and res
 
 - **It survives being wrong.** Fourteen stress tests each change one assumption and rerun everything. Loss is 6–22% lower in every one, including a theft method the model was never designed for: barcode switching, where the scan count, pace and deletions all look normal ([v1.1](#v11-an-unseen-theft-method-and-closing-the-age-gap)).
 - **It is checked for fairness properly.** Every group of honest shoppers is stopped at under half today's rate. A check that separates real gaps from small-group chance found an age gap; scoring each session against baskets of a similar size narrows it *and* catches more.
-- **It can't be side-stepped by cancelling.** If a shopper with hidden items could cancel SmartShop just before the till and pay at a staffed till, skipping any chance of a rescan, the policy would lose about 40% of its gain (the sessions that slip away are the ones it would have rescanned). v1.2 treats a cancellation as an exit with the same decision, which restores the gain; a crash or flat battery logged by the app gets only the random floor ([v1.2](#v12-cancelled-sessions-genuine-ones-and-cancelling-to-skip-the-check)).
+- **It covers sessions that never reach the till.** A shoplifter who scans everything, cancels and walks out behind a paying customer loses the store the whole basket, about an eighth of all loss, and no rescan sees it. A colleague prompt to help on every cancellation halves it, genuine cancellers get help, and a dead handset is resumed instead of rescanned ([v1.3](#v13-sessions-that-never-reach-the-till-cancellations-cancel-and-walk-dead-handsets)).
 - **Loss stays measurable.** Averaging what targeted rescans find overstates loss about 4x; weighting each rescan by its logged probability is unbiased to within about 1%.
 - **What didn't work is reported, not hidden:** targeted partial checks (full rescans recover more per colleague-minute) and in-app "did you forget?" prompts (usually wrong).
 
@@ -71,7 +71,7 @@ More options in [Quick start](#quick-start); the decision API runs in Docker ([d
 
 # How it was built
 
-The build log, week by week. Each week reports what it found at the time, including the mistakes it caught; the [v1.1](#v11-an-unseen-theft-method-and-closing-the-age-gap) and [v1.2](#v12-cancelled-sessions-genuine-ones-and-cancelling-to-skip-the-check) sections at the end improve on weeks 8 and 10.
+The build log, week by week. Each week reports what it found at the time, including the mistakes it caught; the [v1.1](#v11-an-unseen-theft-method-and-closing-the-age-gap) and [v1.3](#v13-sessions-that-never-reach-the-till-cancellations-cancel-and-walk-dead-handsets) sections at the end improve on weeks 8 and 10.
 
 | Week | | Week | |
 |---|---|---|---|
@@ -450,36 +450,45 @@ v1.1 is the policy the API now serves (each decision returns `risk_score` and `s
 
 A middling raw score (0.49) becomes 0.70 once the session is compared with baskets of its size. Full analysis: [`notebooks/09_unseen_theft_and_size_neutral.ipynb`](notebooks/09_unseen_theft_and_size_neutral.ipynb). Produced by `python -m smartshop.experiments.sensitivity` and `python -m smartshop.reporting.mitigation`.
 
-## v1.2: cancelled sessions, genuine ones and cancelling to skip the check
+## v1.3: sessions that never reach the till (cancellations, cancel-and-walk, dead handsets)
 
-How a SmartShop shop ends: the shopper scans the barcode at the SmartShop till, and that is when a rescan may be requested. Once the barcode is scanned the session cannot be cancelled. Before it, a shopper can cancel SmartShop and pay at a staffed till. Usually that is ordinary: a flat battery, an app crash, a change of mind. But a shopper with hidden items can also cancel just before the till, pay for what is on the belt, keep the rest, and never face any chance of a rescan. Until v1.2 the project assumed every session reached the till barcode, so this is a gap a store would hit on day one.
+Up to v1.1 every session was assumed to reach the till barcode, where the rescan decision is made. In store, some never get there:
 
-| | Today's rules | Closed rules (v1.2) |
+- **Genuine cancellation.** A shopper scans a few items (or most of them), gets an urgent call or can't find what they came for, cancels SmartShop and leaves the items. Nothing is lost.
+- **Cancel-and-walk.** A shoplifter scans items so the session looks normal, cancels, pays nothing, and leaves through the self-scan gates behind a customer who has scanned their receipt barcode to open them, which is easier when it is busy. The whole basket is lost, and no rescan ever sees it.
+- **Dead device.** The store's handset (or the shopper's phone) dies part-way. Today the customer has to scan everything again on another handset, at self-scan or at a checkout. A handset is the store's equipment, so that is the store's failure, not the customer's.
+
+Genuine cancellations and cancel-and-walk can both happen early or late, so timing does not tell them apart. The response has to be right for both:
+
+| | Today | v1.3 |
 |---|---|---|
-| Cancel before the till barcode | Pay at a staffed till; no decision | Treated as an exit: the same decision, scored on the scan log so far |
-| Crash or flat battery logged *by the app* | As above | The 2% random floor only, so a genuine failure is never singled out |
-| After the barcode | Cannot cancel; a shopper with hidden items may walk out | Same |
+| Cancelled with items scanned | Nothing happens | A colleague near the exit gets a prompt to **help** (take the basket back, find the item, show the way to a till); every cancellation, or only higher-risk ones when colleagues are stretched; no reasons shown |
+| Handset or phone dies | Customer rescans everything | **Resume** on another handset or at a till from the Nectar card; never a risk signal |
+| Handsets handed out | Whichever the customer grabs | **Longest on the rack first**, and handsets that keep dying sent for a new battery, from the handset log alone (the handsets show no battery level) |
 
-At a staffed till everything on the belt is scanned, so honest mistakes are paid for; only hidden items are lost. Shoppers who steal respond to the rescan chance they effectively face, so an open loophole also invites more theft. No published figure exists for how often people cancel, so the base values are stated assumptions (3% of sessions cancelled genuinely, 40% of those logged by the app; 30–50% of shoppers with hidden items cancel to skip the check; 10% of those selected walk out), and six other worlds vary them.
+![Cancel-and-walk](reports/figures/25_cancel_and_walk.png)
 
-![Cancellation loophole](reports/figures/24_cancellation_loophole.png)
+| Test period, base assumptions | Today | Help every cancellation | Help higher-risk only |
+|---|---|---|---|
+| Cancel-and-walk loss | \$5,810 (12% of all loss, invisible to rescans) | **\$2,973 (−49%)** | \$3,536 (−39%) |
+| Colleague hours on help prompts | 0 | 14.9 | 8.4 |
+| Answered prompts that were walk-outs | – | 1 in 10 | 1 in 8 |
+| Genuine cancellers helped | 0 | 802 | 440 |
+| Dead handsets | 120 | **9** | 9 |
+| Customer hours lost to dead devices | 11.0 | **1.2** | 1.2 |
 
-| Same colleague time, base assumptions | Today's rules | Closed rules (v1.2) |
-|---|---|---|
-| Today's random rescans: loss remaining | \$42,503 | \$41,654 |
-| Policy v1.1: loss remaining | \$37,542 (−12% vs today) | **\$34,212 (−20%)** |
-| Hidden loss that escaped a rescan (v1.1) | \$4,207 | \$724 (mostly walk-outs) |
-| Genuine cancellers asked for a rescan (v1.1) | 0% | 3.3% (all honest shoppers: 4.1%) |
-| Bias of the weighted loss estimate (v1.1) | **−34%** | −5% |
+![Dead handsets](reports/figures/24_dead_handsets.png)
 
 | Finding | Implication |
 |---|---|
-| If cancelling before the till skips the decision, v1.1's gain falls from about 20% to about 12%, and it costs the risk-based policy more than random rescans: the sessions that slip away are the ones it would most likely have rescanned | Close the loophole before rolling out targeting |
-| Treating a cancellation as an exit restores about 20% less loss than today; across all seven worlds v1.1 stays 16–21% below today with the rules closed, against 9–15% with them open | **v1.2 rules** |
-| Genuine cancellers are asked for a rescan no more often than other honest shoppers; nobody is flagged *for* cancelling, and cancellations are never a risk feature | Fair to people with a flat battery; the crash flag must come from the app's own logs, never from what the shopper says |
-| Skipped checks make loss look a third smaller than it is; under closed rules the bias falls to 5%, from walk-outs the store logs and can report next to the estimate | Report walk-outs with the weighted loss estimate |
+| Cancel-and-walk is about an eighth of all loss, and no rescan, model or loss estimate sees it | Count it separately (prompt and gate logs) next to the weighted loss estimate |
+| A colleague prompt to help on every cancellation halves it; prompting only higher-risk cancellations cuts it by about two-fifths for about half the colleague time. Across nine worlds: 25–50% and 20–40% less | **v1.3**: help every cancellation when a colleague is near the exit, higher-risk only when stretched |
+| Each net colleague hour on prompts recovers far more than a rescan does (base: \$238 for every cancellation, \$424 for higher-risk, against \$75 for v1.1 rescans), even after the time resume saves | The best use of colleague time near the exit |
+| Only about one answered prompt in ten is a walk-out | It has to be help, never an accusation; for genuine shoppers it is simply good service |
+| Among genuine cancellers, a "higher-risk" prompt goes to every group at similar rates (four-fifths ratios 0.85–1.00) | Fair |
+| Handing out the longest-charged handset and replacing worn batteries cuts dead handsets from 6.4 to 0.5 per 1,000 sessions (72–93% across simulated fleets); resume saves the rest of the customer's time | Cheap, and it is the store's problem to fix |
 
-The API accepts `ended_by: "checkout" | "cancelled"` and `app_error` on `/decide`: a session cancelled before the barcode gets the same decision as one that reaches it (an app-logged crash only the floor). Full analysis: [`notebooks/10_cancellations.ipynb`](notebooks/10_cancellations.ipynb). Produced by `python -m smartshop.reporting.cancellations` (about 6 minutes).
+The API takes `ended_by: "checkout" | "cancelled" | "device_failure"` on `/decide`: a cancellation with items returns `help_prompt` with a `help_priority` (high or standard) and no reasons; a device failure returns `resume`. The rates are stated assumptions (no published figures exist), so a pilot should measure them. Full analysis: [`notebooks/10_cancellations_and_dead_handsets.ipynb`](notebooks/10_cancellations_and_dead_handsets.ipynb). Produced by `python -m smartshop.reporting.exits` (about 3 minutes).
 
 ## Ground rules
 
@@ -506,7 +515,7 @@ The API accepts `ended_by: "checkout" | "cancelled"` and `app_error` on `/decide
 | 9 ✅ | FastAPI rescan-decision API in Docker; gated weekly pipeline |
 | 10 ✅ | Streamlit dashboard, fairness check, model card with a data-protection section, business case |
 | v1.1 ✅ | Unseen-theft stress test (barcode switching); size-neutral scores close the age gap and cut loss further |
-| v1.2 ✅ | Cancelled sessions: genuine cancellations protected; cancelling to skip the check closed |
+| v1.3 ✅ | Sessions that never reach the till: help prompts on cancellation (cancel-and-walk), resume and handset rotation (dead handsets). Replaces a v1.2 cancellation model that misread how SmartShop ends |
 
 **v2: after v1**: deliberate vs accidental misses, deterrence value of a rescan, queue-aware capacity, a conformal cap on honest shoppers stopped, data-driven product hotspots, a nudge experiment sized with CUPED, in-app "you might have forgotten…" prompts, scan-time camera verification.
 
@@ -546,17 +555,18 @@ On Windows (no `make`): `python -m smartshop.run_all` runs every step in order (
 │   ├── simulate/            # SimConfig (sources), simulator, rescan model, calibration
 │   ├── basket/              # observed history, masked-basket features, LightGBM model, fair evaluation
 │   ├── risk/                # observable risk features, honest selection, evaluation, fairness
-│   ├── policy/              # the rescan game, policy search, trust, targeted checks, size-neutral scores (v1.1), cancellations (v1.2)
+│   ├── policy/              # the rescan game, policy search, trust, targeted checks, size-neutral scores (v1.1), sessions that never reach the till (v1.3)
 │   ├── experiments/         # loss measurement (inverse-probability weighting), stress tests
 │   ├── serving/             # bundle, exit-time features, FastAPI app, demo bundle, smoke test
 │   ├── monitoring/drift.py  # population stability index
 │   ├── pipeline/weekly.py   # the weekly job: rebuild, drift, release gates, atomic publish
-│   ├── reporting/           # fairness check, trial sizing, fairness mitigation, cancellations, dashboard snapshot
+│   ├── reporting/           # fairness check, trial sizing, fairness mitigation, exits, dashboard snapshot
+│   ├── ops/handsets.py      # handset fleet: which handset to hand out (v1.3)
 │   ├── run_all.py           # every step in order, one command (Windows-friendly)
 │   ├── warehouse.py         # connect to DuckDB, run dbt from Python
 │   └── viz.py               # chart style shared with Nectar
 ├── dbt/                     # seeds, staging, marts, 47 data tests
-├── notebooks/               # 01 EDA · 02 simulator validation · 03 basket model · 04 risk model · 05 rescan policy · 06 trust and targeting · 07 headline and stress tests · 08 fairness and trial · 09 unseen theft and size-neutral scores · 10 cancelled sessions
+├── notebooks/               # 01 EDA · 02 simulator validation · 03 basket model · 04 risk model · 05 rescan policy · 06 trust and targeting · 07 headline and stress tests · 08 fairness and trial · 09 unseen theft and size-neutral scores · 10 cancellations and dead handsets
 ├── models/                  # basket and risk metrics (+ model files, generated by make basket / make risk)
 ├── reports/                 # HTML export + figures
 ├── dashboards/              # Streamlit app + aggregate snapshot (deployable without the data)

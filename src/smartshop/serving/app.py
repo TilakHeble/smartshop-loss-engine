@@ -57,21 +57,17 @@ class DecideRequest(BaseModel):
     draw: float | None = Field(
         default=None, ge=0, lt=1, description="testing only: fix the random draw"
     )
-    ended_by: Literal["checkout", "cancelled"] = Field(
+    ended_by: Literal["checkout", "cancelled", "device_failure"] = Field(
         default="checkout",
-        description="cancelled: the shopper cancelled SmartShop before scanning the till "
-        "barcode; it is treated as an exit and gets the same decision",
-    )
-    app_error: bool = Field(
-        default=False,
-        description="the app itself logged the cancellation as a crash or flat battery "
-        "(never set from anything the shopper says): random floor only",
+        description="checkout: the till barcode was scanned (rescan decision). cancelled: the "
+        "shopper cancelled SmartShop before the till (help prompt, never a rescan). "
+        "device_failure: the handset or phone died (resume; never a risk signal)",
     )
 
 
 class DecideResponse(BaseModel):
     session_id: str
-    decision: Literal["full_rescan", "no_rescan"]
+    decision: Literal["full_rescan", "no_rescan", "help_prompt", "no_prompt", "resume"]
     rescan_probability: float
     draw: float
     audit_sample: bool
@@ -82,9 +78,8 @@ class DecideResponse(BaseModel):
     trust_multiplier: float
     known_member: bool
     unknown_products: int
-    ended_by: Literal["checkout", "cancelled"]
-    app_error_cancellation: bool
-    session_locked: bool
+    ended_by: Literal["checkout", "cancelled", "device_failure"]
+    help_priority: Literal["high", "standard"] | None
     bundle_version: str
 
 
@@ -122,7 +117,7 @@ async def lifespan(_: FastAPI):
     yield
 
 
-app = FastAPI(title="SmartShop rescan decisions", version="1.2.0", lifespan=lifespan)
+app = FastAPI(title="SmartShop rescan decisions", version="1.3.0", lifespan=lifespan)
 
 
 @app.middleware("http")
@@ -201,7 +196,6 @@ def decide(req: DecideRequest) -> DecideResponse:
         events,
         draw=req.draw,
         ended_by=req.ended_by,
-        app_error=req.app_error,
     )
     resp = DecideResponse(
         session_id=req.session_id, bundle_version=b.manifest["bundle_version"], **out

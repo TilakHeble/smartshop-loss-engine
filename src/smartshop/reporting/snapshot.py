@@ -272,30 +272,31 @@ def build() -> dict:
         "sensitivity": sens.to_dict("records"),
         "weekly_job": weekly_job,
     }
-    snap["cancellations"] = cancellations_block()
+    snap["exits"] = exits_block()
     SNAPSHOT_PATH.parent.mkdir(parents=True, exist_ok=True)
     SNAPSHOT_PATH.write_text(json.dumps(_clean(snap), indent=1, default=_jsonable, allow_nan=False))
     return snap
 
 
-def cancellations_block() -> dict | None:
-    """v1.2 results (models/cancellations*.csv from smartshop.reporting.cancellations)."""
-    table, meas = (
-        ROOT / "models" / "cancellations.csv",
-        ROOT / "models" / "cancellations_measurement.csv",
-    )
-    if not (table.exists() and meas.exists()):
+def exits_block() -> dict | None:
+    """v1.3 results (models/exits*.csv, handsets.csv from smartshop.reporting.exits)."""
+    m = ROOT / "models"
+    files = ["exits.csv", "handsets.csv", "exits_fairness.csv", "exits_summary.json"]
+    if not all((m / f).exists() for f in files):
         return None
     return {
-        "table": pd.read_csv(table).to_dict("records"),
-        "measurement": pd.read_csv(meas).to_dict("records"),
+        "table": pd.read_csv(m / "exits.csv").to_dict("records"),
+        "handsets": pd.read_csv(m / "handsets.csv").to_dict("records"),
+        "fairness": pd.read_csv(m / "exits_fairness.csv").to_dict("records"),
+        "summary": json.loads((m / "exits_summary.json").read_text()),
     }
 
 
-def add_cancellations() -> None:
-    """Attach the v1.2 results to an existing snapshot without rebuilding the rest."""
+def add_exits() -> None:
+    """Attach the v1.3 results to an existing snapshot without rebuilding the rest."""
     snap = json.loads(SNAPSHOT_PATH.read_text())
-    snap["cancellations"] = cancellations_block()
+    snap.pop("cancellations", None)
+    snap["exits"] = exits_block()
     SNAPSHOT_PATH.write_text(json.dumps(_clean(snap), indent=1, default=_jsonable, allow_nan=False))
 
 

@@ -264,23 +264,36 @@ def test_v11_bundle_uses_size_adjusted_scores_and_keeps_the_budget(sim_con, tmp_
     assert 0.02 <= out["rescan_probability"] <= 0.5
 
 
-def test_cancelled_sessions_are_exits_and_crashes_get_the_floor(bundle):
+def test_cancellations_get_a_help_prompt_and_dead_devices_resume(bundle):
     ev = _events()
-    finish = bundle.decide(3, 15.0, ev, draw=0.9)
-    cancel = bundle.decide(3, 15.0, ev, draw=0.9, ended_by="cancelled")
-    crash = bundle.decide(3, 15.0, ev, draw=0.9, ended_by="cancelled", app_error=True)
-    # cancelling is not a way around the decision
-    assert cancel["rescan_probability"] == finish["rescan_probability"]
-    # an app-logged crash gets only the random floor, never more
-    assert crash["rescan_probability"] == pytest.approx(0.02)
-    assert crash["app_error_cancellation"] and not cancel["app_error_cancellation"]
-    # a requested rescan locks the session
-    selected = bundle.decide(3, 15.0, ev, draw=0.0, ended_by="cancelled")
-    assert selected["decision"] == "full_rescan" and selected["session_locked"]
-    assert not finish["session_locked"] or finish["decision"] == "full_rescan"
+    cancel = bundle.decide(3, 15.0, ev, draw=0.0, ended_by="cancelled")
+    assert cancel["decision"] == "help_prompt" and cancel["rescan_probability"] == 0
+    assert cancel["help_priority"] in ("high", "standard")
+    assert cancel["reasons"] == []  # help, not an accusation: no reasons shown
+    no_events = pd.DataFrame(columns=["t", "action", "product_id", "unit_price"])  # as the API
+    empty = bundle.decide(3, 1.0, no_events, draw=0.0, ended_by="cancelled")
+    assert empty["decision"] == "no_prompt"  # nothing scanned, nothing to help with
+    dead = bundle.decide(3, 15.0, ev, draw=0.0, ended_by="device_failure")
+    assert dead["decision"] == "resume" and dead["help_priority"] is None
+    assert dead["rescan_probability"] == 0 and not dead["audit_sample"]
+    finish = bundle.decide(3, 15.0, ev, draw=0.0)
+    assert finish["decision"] == "full_rescan"  # the checkout decision is unchanged
 
 
-def test_api_accepts_cancellations(tmp_path, monkeypatch):
+def test_higher_risk_only_prompts_follow_the_bundle_setting(bundle):
+    import copy
+
+    b = copy.copy(bundle)
+    b.manifest = copy.deepcopy(bundle.manifest)
+    b.manifest["exits"] = {"prompt": "higher_risk", "risk_cut": 1.1}  # nobody is high risk
+    out = b.decide(3, 15.0, _events(), draw=0.0, ended_by="cancelled")
+    assert out["decision"] == "no_prompt"
+    b.manifest["exits"]["risk_cut"] = -0.1  # everybody is
+    out = b.decide(3, 15.0, _events(), draw=0.0, ended_by="cancelled")
+    assert out["decision"] == "help_prompt" and out["help_priority"] == "high"
+
+
+def test_api_accepts_cancellations_and_device_failures(tmp_path, monkeypatch):
     from fastapi.testclient import TestClient
 
     from smartshop.serving import app as appmod
@@ -294,12 +307,11 @@ def test_api_accepts_cancellations(tmp_path, monkeypatch):
         "duration_min": 6,
         "events": _events(3, 0).to_dict("records"),
         "ended_by": "cancelled",
-        "app_error": True,
         "draw": 0.5,
     }
     with TestClient(appmod.app) as client:
         r = client.post("/decide", json=body).json()
-        assert r["ended_by"] == "cancelled" and r["app_error_cancellation"]
-        assert r["rescan_probability"] == pytest.approx(0.02)
-        bad = client.post("/decide", json=body | {"ended_by": "walked_out"})
-        assert bad.status_code == 422
+        assert r["decision"] == "help_prompt" and r["ended_by"] == "cancelled"
+        r = client.post("/decide", json=body | {"ended_by": "device_failure"}).json()
+        assert r["decision"] == "resume"
+        assert client.post("/decide", json=body | {"ended_by": "walked_out"}).status_code == 422

@@ -26,7 +26,8 @@
 | Unseen method (barcode switching, every thief, no retraining) | still 5.7% less loss than today |
 | Measuring loss | averaging targeted rescans overstates loss ~4x; weighting by 1/probability is unbiased (~1%) |
 | Fairness | every group stopped at under half today's rate; age ratio 0.61 → 0.69 with v1.1 |
-| Cancelling before the till to skip the check | cuts the gain to −12% if allowed; treating a cancellation as an exit restores −20% |
+| Cancel-and-walk | about 1/8 of all loss, invisible to rescans; a help prompt on every cancellation halves it |
+| Dead handsets | 6.4 → 0.5 per 1,000 sessions by handing out the longest-charged one |
 | Store trial | roughly 40–100 stores per arm |
 
 ## Hard questions
@@ -43,8 +44,11 @@ Two reasons. A fixed threshold can be learned and gamed; a random draw with a fl
 **"How do you get training labels when rescans are targeted?"**
 Only from the random full rescans: today's 2% random full rescans, and the policy's 2% floor. Targeted rescans are a biased sample. For total loss I weight each rescan by one over the probability it had. That's inverse-probability weighting, and it's why the API logs the probability with every decision.
 
-**"What if someone with hidden items just cancels SmartShop before the till?"**
-I tested exactly that. Once you scan the barcode at the till you can't cancel, but before it you can cancel and pay at a staffed till, and under today's rules that skips the rescan decision altogether. You'd keep whatever you hid. In the simulation it cuts the policy's gain from about 20% to about 12%, and it hurts a smart policy more than random checks, because the people who slip away are the ones it would most likely have rescanned. So in v1.2 a cancellation counts as reaching the till and gets the same decision, scored on what was scanned so far. That brings the gain back to about 20%. People with a genuine crash or flat battery (logged by the app, not claimed) only get the 2% random chance, so they're never singled out. And if cancelling skipped the check, the loss estimate would read about a third too low.
+**"What about people who cancel SmartShop and just walk out?"**
+That's the gap rescans can't see. A shoplifter scans everything so it looks normal, cancels, pays nothing and slips through the gates behind someone who's paid. In the simulation it's about an eighth of all loss. Genuine shoppers cancel too, an urgent call or an item they can't find, and both can happen early or late, so the data can't tell them apart at that moment. So the response has to be right for both: every cancellation with items sends a colleague near the exit a prompt to *help*. Genuine shoppers get help, and a would-be walk-out meets a colleague. It halves that loss, and only about one prompt in ten is a thief, which is exactly why it's help, never an accusation.
+
+**"And when a SmartShop handset dies?"**
+That's the store's equipment failing, not the customer's problem, but today they have to rescan everything. The handsets don't show a battery level, but the store knows which handset each session used and when it went back on the rack. Handing out the one that's been charging longest, and replacing batteries that keep dying, cut dead handsets from about 6 to 0.5 per thousand sessions in my simulation. And when one still dies, the session resumes on another handset from the Nectar card.
 
 **"Why logistic regression, not XGBoost?"**
 There were fewer than 1,000 labels in the training period. I compared candidates by repeated cross-validation and the leaders were close, so I chose the one that gives plain-English reasons a colleague can use, like "long pause between scans".

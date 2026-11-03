@@ -81,7 +81,7 @@ tabs = st.tabs(
         "Fairness",
         "Measuring loss & trial",
         "Robustness",
-        "Cancellations",
+        "Cancellations & handsets",
         "Model health",
     ]
 )
@@ -469,98 +469,91 @@ with tabs[5]:
         "deletions look normal. 'Not retrained' uses the base world's model and policy."
     )
 
-# ------------------------------------------------------------------ Cancellations
+# ------------------------------------------------------------------ Cancellations & handsets
 with tabs[6]:
-    st.subheader("Cancelled sessions: genuine ones, and cancelling to skip the check")
-    canc = d.get("cancellations")
-    if not canc:
-        st.info("No cancellation analysis in this snapshot.")
+    st.subheader("Sessions that never reach the till")
+    ex = d.get("exits")
+    if not ex:
+        st.info("No v1.3 analysis in this snapshot.")
     else:
         st.write(
-            "A shopper can cancel SmartShop before scanning the barcode at the till and pay at a "
-            "staffed till instead: usually a flat battery, an app crash or a change of mind. But a "
-            "shopper with hidden items can also cancel just before the till and never face any "
-            "chance of a rescan. Once the barcode is scanned the session cannot be cancelled. The "
-            "closed rules (v1.2) treat a cancellation as an exit with the same decision, and give "
-            "a crash or flat battery logged by the app only the 2% random floor."
+            "**Genuine cancellations:** a shopper gets an urgent call or can't find what they "
+            "came for, cancels SmartShop and leaves the items. **Cancel-and-walk:** a shoplifter "
+            "scans so the session looks normal, cancels, pays nothing and slips through the "
+            "self-scan gates behind a customer who scanned their receipt (easier when busy). The "
+            "whole basket is lost and no rescan ever sees it. Both can happen early or late, so "
+            "timing does not tell them apart. **Dead handsets** are the store's equipment "
+            "failing: today the customer has to scan everything again."
         )
-        ct = pd.DataFrame(canc["table"])
-        world = st.selectbox(
-            "Assumptions",
-            [w for w in ct.world.unique() if w != "No cancellations (reference)"],
+        summ = ex["summary"]
+        st.caption(
+            f"Today cancel-and-walk is about {summ['walk_out_share_of_all_loss_today']:.0%} of "
+            "all loss, all of it invisible to rescans."
         )
-        cw = ct[ct.world == world].copy()
-        cw["rules"] = cw.rules.map({"open": "Today's rules", "closed": "Closed rules (v1.2)"})
+        et = pd.DataFrame(ex["table"])
+        world = st.selectbox("Assumptions", list(et.world.unique()))
+        w = et[et.world == world].set_index("arm")
+        today_row = w.loc["Today"]
+        cols = st.columns(len(w))
+        for col, arm in zip(cols, w.index, strict=True):
+            r = w.loc[arm]
+            col.markdown(f"**{arm}**")
+            col.metric(
+                "Cancel-and-walk loss",
+                money(r["walk-out loss"]),
+                None
+                if arm == "Today"
+                else f"{r['walk-out loss'] / today_row['walk-out loss'] - 1:.0%} vs today",
+                delta_color="inverse",
+            )
+            col.metric("Colleague hours on help prompts", f"{r['colleague hours on prompts']:.1f}")
+            col.metric(
+                "Customer hours lost to dead devices",
+                f"{r['customer hours lost to dead devices']:.1f}",
+            )
+        st.caption(
+            "v1.3: any session cancelled with items sends a colleague near the exit a prompt to "
+            "help (take the basket back, find the item, show the way to a till). It is help, not "
+            "an accusation, and no reasons are shown. 'Higher-risk' prompts only the cancellations "
+            "whose session scores in the top half, which costs less colleague time. About one "
+            "answered prompt in ten is a walk-out (one in eight for higher-risk); the rest are "
+            "genuine shoppers being helped."
+        )
+        st.markdown("**Dead handsets: the store's problem, not the customer's**")
+        hs = pd.DataFrame(ex["handsets"])
         st.altair_chart(
-            alt.Chart(cw)
-            .mark_bar()
+            alt.Chart(hs)
+            .mark_bar(color=BLUE)
             .encode(
-                x=alt.X("arm:N", title=None, axis=alt.Axis(labelAngle=0)),
-                y=alt.Y("loss_remaining:Q", title="Loss remaining (test period)"),
-                color=alt.Color(
-                    "rules:N",
-                    title=None,
-                    scale=alt.Scale(
-                        domain=["Today's rules", "Closed rules (v1.2)"], range=[GREY, BLUE]
-                    ),
-                ),
-                xOffset="rules:N",
+                y=alt.Y("policy:N", sort=None, title=None, axis=alt.Axis(labelLimit=300)),
+                x=alt.X("failures per 1,000 sessions:Q", title="Dead handsets per 1,000 sessions"),
                 tooltip=[
-                    "arm",
-                    "rules",
-                    alt.Tooltip("loss_remaining:Q", format="$,.0f"),
-                    alt.Tooltip("hidden_loss_escaping_rescans:Q", format="$,.0f"),
+                    "policy",
+                    alt.Tooltip("failures per 1,000 sessions:Q", format=".1f"),
+                    alt.Tooltip("min:Q", title="lowest over 5 fleets", format=".1f"),
+                    alt.Tooltip("max:Q", title="highest over 5 fleets", format=".1f"),
                 ],
             )
-            .properties(height=300),
+            .properties(height=160),
             width="stretch",
-        )
-        v = cw[cw.arm == "Policy v1.1"].set_index("rules")
-        open_row, closed_row = v.loc["Today's rules"], v.loc["Closed rules (v1.2)"]
-        c1, c2, c3 = st.columns(3)
-        c1.metric(
-            "Policy v1.1 vs today, today's rules",
-            f"{open_row['loss vs today (open rules)']:.0%}",
-        )
-        c2.metric(
-            "Policy v1.1 vs today, closed rules",
-            f"{closed_row['loss vs today (open rules)']:.0%}",
-        )
-        c3.metric(
-            "Hidden loss that escaped a rescan (v1.1)",
-            money(open_row["hidden_loss_escaping_rescans"]),
-            f"{money(closed_row['hidden_loss_escaping_rescans'])} under closed rules",
-            delta_color="off",
         )
         st.caption(
-            "The loophole costs the risk-based policy more than random rescans: the sessions that "
-            "cancel to skip the check are the ones it would most likely have rescanned. "
-            "Genuine cancellers are asked for a rescan no more often than other honest shoppers, "
-            "and nobody is flagged for cancelling."
+            "The handsets show no battery level, but the store knows which handset each session "
+            "used and when it went back on the rack. Handing out the one longest on the rack, and "
+            "sending handsets that keep dying for a new battery, needs only that log. When one "
+            "does die, v1.3 resumes the session on another handset or at a till from the Nectar "
+            "card: nothing is scanned twice, and it is never a risk signal."
         )
-        m = pd.DataFrame(canc["measurement"])
-        m["rules"] = m.rules.map({"open": "Today's rules", "closed": "Closed rules (v1.2)"})
-        st.markdown("**Measuring loss when the check can be skipped**")
-        st.dataframe(
-            m[["rules", "bias", "error", "cancellations", "walked out"]]
-            .rename(
-                columns={
-                    "bias": "bias of the weighted loss estimate",
-                    "error": "typical error",
-                    "walked out": "walked out after being selected",
-                }
+        fr = pd.DataFrame(ex["fairness"])
+        if not fr.empty:
+            st.markdown("**Who a 'higher-risk' prompt goes to, among genuine cancellers**")
+            st.dataframe(
+                fr.rename(columns={"ratio": "four-fifths ratio"}).style.format(
+                    {"lowest": "{:.0%}", "highest": "{:.0%}", "four-fifths ratio": "{:.2f}"}
+                ),
+                hide_index=True,
+                width="stretch",
             )
-            .style.format(
-                {
-                    "bias of the weighted loss estimate": "{:+.0%}",
-                    "typical error": "{:.0%}",
-                    "cancellations": "{:,.0f}",
-                    "walked out after being selected": "{:,.0f}",
-                }
-            ),
-            hide_index=True,
-            width="stretch",
-        )
 
 # ------------------------------------------------------------------ Model health
 with tabs[7]:

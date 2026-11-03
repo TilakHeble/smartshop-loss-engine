@@ -3,6 +3,7 @@
 import shutil
 
 import numpy as np
+import pandas as pd
 import pytest
 
 from smartshop.basket.data import prepare
@@ -201,41 +202,85 @@ def test_size_neutral_scores_remove_the_basket_size_effect():
     assert np.allclose(again(score[:100], units[:100]), n(score[:100], units[:100]))
 
 
-def test_no_cancellations_reduces_to_the_ordinary_outcome(game):
-    from smartshop.policy.cancel import CLOSED, OPEN, CancelConfig, outcome_with_cancellations
-    from smartshop.policy.game import outcome, smooth_policy
+def _exit_sessions(n=40_000, seed=0):
+    rng = np.random.default_rng(seed)
+    typ = rng.choice(
+        ["honest", "careless", "opportunist", "deliberate", "adaptive"],
+        n,
+        p=[0.72, 0.14, 0.08, 0.04, 0.02],
+    )
+    thief = np.isin(typ, ["opportunist", "deliberate", "adaptive"])
+    return pd.DataFrame(
+        {
+            "basket_id": np.arange(n),
+            "gt_type": typ,
+            "value": rng.gamma(2, 20, n),
+            "units": rng.integers(1, 60, n),
+            "hour_of_day": rng.integers(7, 23, n),
+            "channel": np.where(rng.random(n) < 0.45, "handset", "app"),
+            # thieves score higher on average, as the risk model does
+            "score": 1 / (1 + np.exp(-(rng.normal(size=n) + 1.0 * thief))),
+        }
+    )
 
-    _, g = game
-    off = CancelConfig(midshop_rate=0.0, cancel_when_stealing={}, walk_away_when_selected=0.0)
-    pol = smooth_policy(0.0, 0.02, 0.5, 0.05)
-    ref, ref_today = outcome(g, pol), outcome(g, None, today=True)
-    for rules in (OPEN, CLOSED):
-        o = outcome_with_cancellations(g, pol, rules, off)
-        assert o["loss_remaining"] == pytest.approx(ref["loss_remaining"])
-        assert o["honest_stops"] == pytest.approx(ref["honest_stops"])
-        assert o["colleague_hours"] == pytest.approx(ref["colleague_hours"])
-        t = outcome_with_cancellations(g, None, rules, off, today=True)
-        assert t["loss_remaining"] == pytest.approx(ref_today["loss_remaining"])
+
+def test_help_prompts_cut_walk_outs_and_resume_saves_time():
+    from smartshop.policy.exits import HELP_ALL, HELP_RISK, TODAY, ExitConfig, run_arms
+
+    r = run_arms(_exit_sessions(), ExitConfig(), seeds=range(5))
+    # same draws in every arm: the same walk-out attempts
+    assert r["walk-out attempts"].nunique() == 1
+    assert r.loc[TODAY, "prompts"] == 0
+    assert r.loc[HELP_ALL, "walk-out loss"] < r.loc[HELP_RISK, "walk-out loss"]
+    assert r.loc[HELP_RISK, "walk-out loss"] < r.loc[TODAY, "walk-out loss"]
+    # prompting only higher-risk cancellations costs less colleague time
+    assert (
+        r.loc[HELP_RISK, "colleague hours on prompts"]
+        < r.loc[HELP_ALL, "colleague hours on prompts"]
+    )
+    # and the risk score makes those prompts more often the right ones
+    prec = r["prompts that were walk-outs"] / r["prompts answered"]
+    assert prec[HELP_RISK] > prec[HELP_ALL]
+    # dead handsets: fewer, and nobody rescans everything
+    assert r.loc[HELP_ALL, "dead handsets"] < r.loc[TODAY, "dead handsets"]
+    assert (
+        r.loc[HELP_ALL, "customer hours lost to dead devices"]
+        < r.loc[TODAY, "customer hours lost to dead devices"]
+    )
 
 
-def test_cancelling_before_the_till_no_longer_skips_the_check(game):
-    from smartshop.policy.cancel import CLOSED, OPEN, CancelConfig, outcome_with_cancellations
-    from smartshop.policy.game import smooth_policy
+def test_nothing_happens_when_nobody_cancels_or_walks():
+    from smartshop.policy.exits import HELP_ALL, ExitConfig, simulate_exits
 
-    _, g = game
-    cc = CancelConfig(midshop_rate=0.05, walk_away_when_selected=0.0)
-    pol = smooth_policy(0.0, 0.02, 0.5, 0.05)
-    open_, closed = (outcome_with_cancellations(g, pol, r, cc) for r in (OPEN, CLOSED))
-    # today's rules: a cancellation skips the decision, so hidden items escape rescans
-    assert open_["hidden_loss_escaping_rescans"] > 0
-    # closed rules: a cancellation gets the same decision; with nobody walking out, hidden items
-    # escape only when a shopper's app genuinely crashes (floor only), a small fraction
-    assert closed["hidden_loss_escaping_rescans"] < 0.1 * open_["hidden_loss_escaping_rescans"]
-    # skipping makes stealing more attractive, so closing it deters at least as much
-    assert closed["adaptive_stealing"] <= open_["adaptive_stealing"] + 1e-9
-    # genuine cancellers: never asked under today's rules; under closed rules app crashes get
-    # only the floor, so they are asked no more often than honest shoppers who finish
-    assert open_["genuine_cancellers_stopped"] == 0
-    rate_cancel = closed["genuine_cancellers_stopped"] / closed["genuine_cancellations"]
-    rate_all = closed["honest_stops"] / (len(g) - closed["sessions_with_theft"])
-    assert rate_cancel <= rate_all + 1e-9
+    off = ExitConfig(
+        walk_rate={},
+        genuine_cancel_rate=0.0,
+        phone_failure_rate=0.0,
+        handset_failure_today=0.0,
+        handset_failure_v13=0.0,
+    )
+    o = simulate_exits(_exit_sessions(5000), HELP_ALL, off, seed=1)
+    assert o["walk-out loss"] == 0 and o["prompts"] == 0 and o["dead devices"] == 0
+
+
+def test_handing_out_the_longest_charged_handset_means_fewer_dead_ones():
+    from smartshop.ops.handsets import (
+        LONGEST_FIRST,
+        LONGEST_FIRST_RETIRE,
+        RANDOM,
+        compare,
+        store_timeline,
+    )
+
+    rng = np.random.default_rng(3)
+    days = np.repeat(np.arange(501, 561), 120)
+    sessions = pd.DataFrame(
+        {
+            "day": days.astype("int16"),  # as stored: a small integer (overflow guard)
+            "start_minute": rng.uniform(420, 1320, len(days)),
+            "duration_min": rng.gamma(2, 9, len(days)),
+        }
+    )
+    r = compare(store_timeline(sessions)).set_index("policy")["failures per 1,000 sessions"]
+    assert r[LONGEST_FIRST_RETIRE] <= r[LONGEST_FIRST] <= r[RANDOM]
+    assert r[RANDOM] > 0
