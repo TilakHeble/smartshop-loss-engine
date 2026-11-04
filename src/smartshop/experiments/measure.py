@@ -17,11 +17,20 @@ import pandas as pd
 
 
 def estimates(real: pd.DataFrame, floor: float, detect: float) -> dict:
-    """Three estimates of total loss from one period's realised rescans (`run_cycles` output)."""
+    """Three estimates of total loss from one period's realised rescans (`run_cycles` output).
+
+    Weighting uses full checks only (with their full-check probability): a partial check finds a
+    hidden item only by chance, so it would bias the estimate. The random floor is always a full
+    check, so every session has a known, non-zero chance of one.
+    """
     r = real[real.rescanned]
     n = len(real)
     found = r.found_value.to_numpy()
-    ht = (found / r.p.to_numpy()).sum() / detect
+    if "p_full" in real:
+        f = real[real.rescanned & (real.kind == "full")]
+        ht = (f.found_value.to_numpy() / f.p_full.to_numpy()).sum() / detect
+    else:
+        ht = (found / r.p.to_numpy()).sum() / detect
     naive = found.mean() * n / detect if len(r) else np.nan
     audit = real[real.u < floor]
     floor_only = audit.found_value.sum() / floor / detect

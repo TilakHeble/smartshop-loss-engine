@@ -28,6 +28,7 @@ STEPS = {
     "policy": PY + ["smartshop.policy.search"],
     "stress": PY + ["smartshop.experiments.sensitivity"],
     "mitigation": PY + ["smartshop.reporting.mitigation"],
+    "checks": PY + ["smartshop.reporting.checks"],
     "exits": PY + ["smartshop.reporting.exits"],
     "weekly": PY + ["smartshop.pipeline.weekly"],
     "report": PY + ["smartshop.reporting.snapshot"],

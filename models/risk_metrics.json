@@ -5,31 +5,31 @@
       "label": "found anything",
       "features": "session+history+gap",
       "model": "logistic",
-      "cv_value_capture_top20": 0.6581
+      "cv_value_capture_top20": 0.654
     },
     {
       "label": "found anything",
       "features": "session+history",
       "model": "logistic",
-      "cv_value_capture_top20": 0.6428
+      "cv_value_capture_top20": 0.6457
     },
     {
       "label": "found $10+",
       "features": "session+history+gap",
       "model": "logistic",
-      "cv_value_capture_top20": 0.6426
-    },
-    {
-      "label": "found $5+",
-      "features": "session+history+gap",
-      "model": "logistic",
-      "cv_value_capture_top20": 0.6338
+      "cv_value_capture_top20": 0.6384
     },
     {
       "label": "found anything",
       "features": "session+history+gap",
       "model": "lightgbm",
-      "cv_value_capture_top20": 0.6288
+      "cv_value_capture_top20": 0.6266
+    },
+    {
+      "label": "found $5+",
+      "features": "session+history+gap",
+      "model": "logistic",
+      "cv_value_capture_top20": 0.6259
     },
     {
       "label": "found anything",
@@ -38,16 +38,16 @@
       "cv_value_capture_top20": 0.6198
     },
     {
-      "label": "found $5+",
-      "features": "session+history",
-      "model": "logistic",
-      "cv_value_capture_top20": 0.6183
-    },
-    {
       "label": "found anything",
       "features": "session+history",
       "model": "lightgbm",
-      "cv_value_capture_top20": 0.6176
+      "cv_value_capture_top20": 0.6182
+    },
+    {
+      "label": "found $5+",
+      "features": "session+history",
+      "model": "logistic",
+      "cv_value_capture_top20": 0.613
     },
     {
       "label": "found anything",
@@ -59,7 +59,7 @@
       "label": "found $10+",
       "features": "session+history",
       "model": "logistic",
-      "cv_value_capture_top20": 0.6006
+      "cv_value_capture_top20": 0.6072
     },
     {
       "label": "found $5+",
@@ -68,16 +68,16 @@
       "cv_value_capture_top20": 0.5972
     },
     {
-      "label": "found $5+",
-      "features": "session+history+gap",
-      "model": "lightgbm",
-      "cv_value_capture_top20": 0.5952
-    },
-    {
       "label": "found $10+",
       "features": "session",
       "model": "logistic",
       "cv_value_capture_top20": 0.5943
+    },
+    {
+      "label": "found $5+",
+      "features": "session+history+gap",
+      "model": "lightgbm",
+      "cv_value_capture_top20": 0.5931
     },
     {
       "label": "found $5+",
@@ -89,19 +89,19 @@
       "label": "found $5+",
       "features": "session+history",
       "model": "lightgbm",
-      "cv_value_capture_top20": 0.5701
+      "cv_value_capture_top20": 0.5718
     },
     {
       "label": "found $10+",
       "features": "session+history+gap",
       "model": "lightgbm",
-      "cv_value_capture_top20": 0.5623
+      "cv_value_capture_top20": 0.562
     },
     {
       "label": "found $10+",
       "features": "session+history",
       "model": "lightgbm",
-      "cv_value_capture_top20": 0.5565
+      "cv_value_capture_top20": 0.5506
     },
     {
       "label": "found $10+",

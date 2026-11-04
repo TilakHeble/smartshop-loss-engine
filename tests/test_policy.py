@@ -284,3 +284,22 @@ def test_handing_out_the_longest_charged_handset_means_fewer_dead_ones():
     r = compare(store_timeline(sessions)).set_index("policy")["failures per 1,000 sessions"]
     assert r[LONGEST_FIRST_RETIRE] <= r[LONGEST_FIRST] <= r[RANDOM]
     assert r[RANDOM] > 0
+
+
+def test_partial_check_size_and_mix_policy():
+    """v1.4: a partial check covers ~20% of the basket (at least 2 items); in the mixed policy
+    the random floor is always a full check and only high scores get a full targeted check."""
+    from smartshop.policy.game import mix_policy, smooth_policy, split_policy
+    from smartshop.simulate.config import SimConfig
+    from smartshop.simulate.rescan import partial_count
+
+    cfg = SimConfig()
+    assert list(partial_count(np.array([1, 3, 10, 11, 50]), cfg)) == [1, 2, 2, 3, 10]
+    score = np.linspace(0, 1, 101)
+    total = np.asarray(smooth_policy(0.5, 0.02, 0.5, 0.05)(score))
+    full, part = mix_policy(0.5, 0.02, 0.5, 0.05, s_full=0.8)(score)
+    np.testing.assert_allclose(full + part, total)  # same overall chance of a check
+    assert (full >= 0.02 - 1e-12).all()  # the floor is always a full check
+    assert (part[score >= 0.8] == 0).all() and (part[score < 0.8] >= 0).all()
+    f1, p1 = split_policy(smooth_policy(0.5, 0.02, 0.5, 0.05), score)
+    assert (p1 == 0).all()  # a plain policy asks only for full checks

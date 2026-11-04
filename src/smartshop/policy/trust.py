@@ -29,9 +29,11 @@ import pandas as pd
 from smartshop.policy.game import (
     GameData,
     fit_to_budget,
+    mix_policy,
     outcome,
     responses,
     smooth_policy,
+    split_policy,
     today_hours,
 )
 
@@ -82,7 +84,15 @@ def multipliers(events: pd.DataFrame, members: np.ndarray, day: int, rule: Trust
 
 def with_trust(base, mult: np.ndarray, floor: float):
     """Policy that scales the base probability by each session's trust multiplier."""
-    return lambda score: np.maximum(floor, np.asarray(base(score)) * mult)
+
+    def policy(score):
+        out = base(score)
+        if isinstance(out, tuple):  # (full, partial): the floor stays a full check
+            full, part = (np.asarray(x) * mult for x in out)
+            return np.maximum(floor, full), part
+        return np.maximum(floor, np.asarray(out) * mult)
+
+    return policy
 
 
 def run_cycles(
@@ -114,14 +124,21 @@ def run_cycles(
         mult = gc.sessions.member_id.map(mult_m).to_numpy()
 
         def make(t, mult=mult):
-            base = smooth_policy(t, params["floor"], params["cap"], params["tau"])
+            if "s_full" in params:
+                base = mix_policy(
+                    t, params["floor"], params["cap"], params["tau"], params["s_full"]
+                )
+            else:
+                base = smooth_policy(t, params["floor"], params["cap"], params["tau"])
             return with_trust(base, mult, params["floor"])
 
         policy, _ = fit_to_budget(gc, make, today_hours(gc), -12, 12, iters=30)
         o = outcome(gc, policy)
         choice = responses(gc, policy)
         cols = np.arange(len(gc))
-        p = policy(gc.matrix("score")[choice, cols])
+        p_full, p_part = split_policy(policy, gc.matrix("score")[choice, cols])
+        p = p_full + p_part
+        hit = gc.matrix("partial_hit")[choice, cols]
         honest = gc.matrix("deliberate_value")[choice, cols] == 0
         missed_units = gc.matrix("nonscan_units")[choice, cols]
         missed_value = (
@@ -129,7 +146,14 @@ def run_cycles(
         )
         idx = cols_all[mask]
         rescanned = u_rescan[idx] < p
-        found = rescanned & (missed_units > 0) & (u_detect[idx] < g.cfg.full_detect_nonscan)
+        full = u_rescan[idx] < p_full  # includes the random floor
+        detect = g.cfg.full_detect_nonscan
+        # a partial check finds something with chance `hit`, then escalates to a full check
+        found = (
+            rescanned
+            & (missed_units > 0)
+            & (np.where(full, u_detect[idx] < detect, u_detect[idx] < hit * detect))
+        )
         r = pd.DataFrame(
             {
                 "basket_id": gc.sessions.basket_id,
@@ -137,6 +161,8 @@ def run_cycles(
                 "day": gc.sessions.day,
                 "gt_type": gc.sessions.gt_type,
                 "p": p,
+                "p_full": p_full,
+                "kind": np.where(rescanned, np.where(full, "full", "partial"), "none"),
                 "trust_mult": mult,
                 "honest": honest,
                 "rescanned": rescanned,
@@ -149,7 +175,7 @@ def run_cycles(
             }
         )
         realised.append(r)
-        new = r[r.rescanned][["member_id", "day", "found_units", "found_value"]].assign(kind="full")
+        new = r[r.rescanned][["member_id", "day", "found_units", "found_value", "kind"]]
         events = pd.concat([events, new], ignore_index=True)
         typ = gc.sessions.gt_type.to_numpy()
         rows.append(

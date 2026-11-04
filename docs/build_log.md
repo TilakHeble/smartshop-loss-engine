@@ -2,7 +2,7 @@
 
 [← Back to the project page](../README.md)
 
-The project was built in ten weekly steps and then improved twice. Each section reports what that step found at the time, including the mistakes it caught, so the figures in weeks 6–10 are the first version's; the [v1.1](#v11-an-unseen-theft-method-and-closing-the-age-gap) and [v1.3](#v13-sessions-that-never-reach-the-till-cancellations-cancel-and-walk-dead-handsets) sections at the end improve on weeks 8 and 10.
+The project was built in ten weekly steps and then improved three times. Each section reports what that step found at the time, including the mistakes it caught, so the figures in weeks 6–10 are the first version's; the [v1.1](#v11-an-unseen-theft-method-and-closing-the-age-gap) [v1.3](#v13-sessions-that-never-reach-the-till-cancellations-cancel-and-walk-dead-handsets) and [v1.4](#v14-partial-checks-that-escalate-and-full-checks) sections at the end improve on them; v1.4 restates the headline.
 
 | Week | | Week | |
 |---|---|---|---|
@@ -433,6 +433,34 @@ Genuine cancellations and cancel-and-walk can both happen early or late, so timi
 
 The API takes `ended_by: "checkout" | "cancelled" | "device_failure"` on `/decide`: a cancellation with items returns `help_prompt` with a `help_priority` (high or standard) and no reasons; a device failure returns `resume`. The rates are stated assumptions (no published figures exist), so a pilot should measure them. Full analysis: [`notebooks/10_cancellations_and_dead_handsets.ipynb`](../notebooks/10_cancellations_and_dead_handsets.ipynb). Produced by `python -m smartshop.reporting.exits` (about 3 minutes).
 
+## v1.4: partial checks that escalate, and full checks
+
+When the till asks for a check, it is one of two kinds, and a colleague carries it out:
+
+- **Partial check:** the colleague checks a sample of the basket, about 20–25% of the items (at least 2). **If anything is unscanned, the till suggests a full check** of the whole basket.
+- **Full check:** every item, straight away.
+
+Up to v1.3 a partial check was modelled as a fixed 3 items that stopped there, whatever the basket size. That undersold today's checks. v1.4 models them as above. The detection rate within a quick sample is recalibrated (0.53 for a missed item, 0.085 for a concealed one) so partial checks still find something about as often as [ECR18] reports: **3.0% simulated, 2.88% published**. Training labels and the loss estimate still use full checks only. An escalated partial check is excluded, because that basket was chosen by what the sample found.
+
+| Test period, same colleague time as today, shoppers respond, 10 runs | Today, as modelled up to v1.3 | **Today, as modelled in v1.4** | Recommended policy |
+|---|---|---|---|
+| Loss remaining | \$41,639 | \$41,130 | **\$32,216 (−22%)** |
+| Recovered by checks | \$1,196 | \$1,705 | **\$9,320 (5.5x)** |
+| Colleague hours | 113 | 134 | 134 |
+| Recovered per colleague hour | \$11 | \$13 | **\$70** |
+| Honest shoppers stopped | 5,428 | 5,428 | **2,270 (−58%)** |
+
+![Partial vs full](../reports/figures/26_partial_vs_full.png)
+
+| Finding | Implication |
+|---|---|
+| Modelled properly, today's checks recover about 43% more and take about 18% more colleague time. Rerun the old way, the model reproduces v1.3's figures exactly, so the change is isolated | The headline is restated against the stronger baseline: −22% loss (was −20%), 5.5x recovered (was 7.1x), 58% fewer honest shoppers stopped (was 65%). The policy is given the larger colleague time, so it makes more checks and stops a few more honest shoppers than before |
+| When the till targets a shopper, a full check beats a partial one at every mix: making every targeted check partial leaves 12% more loss at today's colleague time, and 3% more on a half-staffed shift | **The till asks for a full check when it targets.** Partial checks rarely reach concealed items, so they escalate only when the sample happens to hold a slip |
+| The same holds if partial checks were more careful (97% of picked mistakes found) or covered 25% of the basket | Not an artefact of the recalibration |
+| The size-neutral strength chosen on the tuning period is still 0.5 | Unchanged |
+
+**In short:** both kinds of check, and escalation, are now in the simulator, the game, the trust cycles and the loss estimate, and a mixed policy (partial for medium risk, full for high) was built and tested. It lost, so the recommended policy keeps targeted checks full. The API therefore still returns `full_rescan` or `no_rescan`; its budget is today's real colleague time, including partial samples and the full checks they escalate to. Full analysis: [`notebooks/11_partial_and_full_checks.ipynb`](../notebooks/11_partial_and_full_checks.ipynb). Produced by `python -m smartshop.reporting.checks` (about 5 minutes).
+
 ## Roadmap
 
 **v1: the core system**
@@ -451,5 +479,6 @@ The API takes `ended_by: "checkout" | "cancelled" | "device_failure"` on `/decid
 | 10 ✅ | Streamlit dashboard, fairness check, model card with a data-protection section, business case |
 | v1.1 ✅ | Unseen-theft stress test (barcode switching); size-neutral scores close the age gap and cut loss further |
 | v1.3 ✅ | Sessions that never reach the till: help prompts on cancellation (cancel-and-walk), resume and handset rotation (dead handsets). Replaces a v1.2 cancellation model that misread how SmartShop ends |
+| v1.4 ✅ | Partial checks of 20–25% of the basket that escalate to a full check; today's baseline restated; targeted checks stay full |
 
 **v2: after v1**: deliberate vs accidental misses, deterrence value of a rescan, queue-aware capacity, a conformal cap on honest shoppers stopped, data-driven product hotspots, a nudge experiment sized with CUPED, in-app "you might have forgotten…" prompts, scan-time camera verification.

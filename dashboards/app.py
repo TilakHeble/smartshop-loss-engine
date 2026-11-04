@@ -150,7 +150,8 @@ with tabs[0]:
             "It also narrows the age gap found in the week 10 fairness check (Fairness tab)."
         )
     st.caption(
-        f"Today: 10% partial and 2% full rescans at random. Recommended: full rescans with "
+        "Today: 10% partial checks (about 20% of the basket; if anything is unscanned the till "
+        "suggests a full check) and 2% full checks, at random. Recommended: full checks with "
         f"probability from {pol['floor']:.0%} (random floor) to {pol['cap']:.0%} by session "
         f"risk, lowered for trusted regulars; colleague time held at today's "
         f"({today['colleague_hours']:,.0f} hours). Shoppers respond to the policy; trust "
@@ -158,6 +159,62 @@ with tabs[0]:
         f"{money(h['policy_min']['loss_remaining'], md=True)}–"
         f"{money(h['policy_max']['loss_remaining'], md=True)}."
     )
+
+    chk = d.get("checks")
+    if chk:
+        with st.expander("Partial or full check? (v1.4)"):
+            tu = pd.DataFrame(chk["tuning"])
+            tu["loss vs all-full"] = tu.groupby("colleague_time").loss_remaining.transform(
+                lambda x: x / x[tu.loc[x.index, "full_share"] == 1.0].iloc[0] - 1
+            )
+            tu["staffing"] = tu.colleague_time.map(
+                {"today": "Today's colleague time", "half": "Half of it (short-staffed)"}
+            )
+            tu["full checks for"] = tu.full_share.map(
+                lambda v: "none" if v == 0 else "all" if v == 1 else f"top {v:.0%}"
+            )
+            st.markdown(
+                "A **partial check** covers about a fifth of the basket; if it finds anything "
+                "unscanned, the till suggests a **full check**. When the till *targets* a shopper, "
+                "should it ask for a partial check (cheaper, so more shoppers) or a full one? "
+                "Below, only the highest-risk share gets a full check and the rest a partial one."
+            )
+            st.altair_chart(
+                alt.Chart(tu)
+                .mark_line(point=True)
+                .encode(
+                    x=alt.X(
+                        "full checks for:N",
+                        sort=list(tu["full checks for"].unique()),
+                        title="Targeted checks that are full (by size-adjusted risk)",
+                        axis=alt.Axis(labelAngle=0),
+                    ),
+                    y=alt.Y(
+                        "loss vs all-full:Q", axis=alt.Axis(format="%"), title="Loss vs all-full"
+                    ),
+                    color=alt.Color(
+                        "staffing:N",
+                        scale=alt.Scale(
+                            domain=["Today's colleague time", "Half of it (short-staffed)"],
+                            range=[BLUE, ORANGE],
+                        ),
+                        legend=alt.Legend(orient="bottom", title=None),
+                    ),
+                    tooltip=[
+                        "staffing",
+                        "full checks for",
+                        alt.Tooltip("loss vs all-full:Q", format="+.1%"),
+                    ],
+                )
+                .properties(height=260),
+                width="stretch",
+            )
+            st.caption(
+                "Tuning period, shoppers respond. Partial checks rarely reach items hidden on "
+                "purpose, so a full check of a shopper the model picked out loses least, even "
+                "short-staffed. The recommended policy keeps targeted checks full; the 2% random "
+                "floor is always a full check, so training and loss measurement stay unbiased."
+            )
 
     w = pd.DataFrame(d["weekly"])
     w = w[w.sessions >= 0.5 * w.sessions.median()]  # drop the final partial week
@@ -342,7 +399,8 @@ with tabs[2]:
             width="stretch",
         )
     st.caption(
-        "Today 12 in every 100 shops are rescanned at random, mostly with quick partial checks. "
+        "Today 12 in every 100 shops are checked at random, mostly with partial checks of about "
+        "a fifth of the basket. "
         "The recommended policy rescans about 3 to 5 in 100, all full rescans, so it uses the "
         "same colleague time on fewer, more thorough checks aimed at the riskiest shops. The rate "
         "is much the same through the busy hours: the policy does not use time of day, so evening "

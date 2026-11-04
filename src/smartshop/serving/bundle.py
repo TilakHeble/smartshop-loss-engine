@@ -36,9 +36,12 @@ from smartshop.config import ROOT, WAREHOUSE_PATH
 from smartshop.monitoring.drift import profile
 from smartshop.policy.neutral import SizeNeutraliser
 from smartshop.serving.features import feature_row, session_features
+from smartshop.simulate.config import SimConfig
+from smartshop.simulate.rescan import partial_count
 
 log = logging.getLogger(__name__)
 DEFAULT_DIR = ROOT / "artifacts"
+PARTIAL_ESCALATION = 0.0288  # share of partial checks that find something [ECR18]
 RECENT_DAYS = 28  # the latest cycle: calibrates rescan volume and is the drift "current" sample
 
 REASONS = {
@@ -331,7 +334,11 @@ def build_bundle(
         score = neutral(raw, recent.scanned_units.clip(lower=0).to_numpy(), strength)
     mult = recent.member_id.map(prof.trust_mult).fillna(1.0).to_numpy()
     units = recent.scanned_units.clip(lower=0).to_numpy()
-    budget = (0.10 * (45 + 6 * np.minimum(3, units)) + 0.02 * (45 + 4 * units)).sum()
+    # today's colleague time: 10% partial checks of about 20% of the basket, of which ~2.88%
+    # find something and become a full check [ECR18], plus 2% full checks (v1.4)
+    sample = partial_count(units, SimConfig())
+    partial_s = 45 + 6 * sample + PARTIAL_ESCALATION * 4 * units
+    budget = (0.10 * partial_s + 0.02 * (45 + 4 * units)).sum()
     cost = 45 + 4 * units
     lo, hi = -12.0, 12.0
     for _ in range(50):

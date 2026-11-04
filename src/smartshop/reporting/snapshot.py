@@ -273,6 +273,7 @@ def build() -> dict:
         "weekly_job": weekly_job,
     }
     snap["exits"] = exits_block()
+    snap["checks"] = checks_block()
     SNAPSHOT_PATH.parent.mkdir(parents=True, exist_ok=True)
     SNAPSHOT_PATH.write_text(json.dumps(_clean(snap), indent=1, default=_jsonable, allow_nan=False))
     return snap
@@ -289,6 +290,17 @@ def exits_block() -> dict | None:
         "handsets": pd.read_csv(m / "handsets.csv").to_dict("records"),
         "fairness": pd.read_csv(m / "exits_fairness.csv").to_dict("records"),
         "summary": json.loads((m / "exits_summary.json").read_text()),
+    }
+
+
+def checks_block() -> dict | None:
+    """v1.4 results (models/checks*.csv from smartshop.reporting.checks)."""
+    m = ROOT / "models"
+    if not ((m / "checks.csv").exists() and (m / "checks_tuning.csv").exists()):
+        return None
+    return {
+        "table": pd.read_csv(m / "checks.csv").to_dict("records"),
+        "tuning": pd.read_csv(m / "checks_tuning.csv").to_dict("records"),
     }
 
 

@@ -1,4 +1,4 @@
-.PHONY: all mitigation exits report dashboard install ingest dbt dbt-docs sample simulate basket risk policy stress bundle weekly demo-bundle serve docker smoke eda test lint clean
+.PHONY: all mitigation checks exits report dashboard install ingest dbt dbt-docs sample simulate basket risk policy stress bundle weekly demo-bundle serve docker smoke eda test lint clean
 
 RAW_DIR ?= data/raw
 
@@ -54,6 +54,9 @@ all:  # every step from the raw CSVs (same as python -m smartshop.run_all)
 mitigation:  # v1.1: size-neutral strength, chosen on the tuning period (~10 min)
 	python -m smartshop.reporting.mitigation
 
+checks:  # v1.4: partial checks that escalate vs full checks (~10 min)
+	python -m smartshop.reporting.checks
+
 exits:  # v1.3: cancellations, cancel-and-walk, dead handsets (~3 min)
 	python -m smartshop.reporting.exits
 
@@ -78,7 +81,8 @@ eda:
 	jupyter nbconvert --to notebook --execute --inplace notebooks/08_fairness_and_trial.ipynb
 	jupyter nbconvert --to notebook --execute --inplace notebooks/09_unseen_theft_and_size_neutral.ipynb
 	jupyter nbconvert --to notebook --execute --inplace notebooks/10_cancellations_and_dead_handsets.ipynb
-	jupyter nbconvert --to html notebooks/0*.ipynb --output-dir reports
+	jupyter nbconvert --to notebook --execute --inplace notebooks/11_partial_and_full_checks.ipynb
+	jupyter nbconvert --to html notebooks/*.ipynb --output-dir reports
 
 test:
 	pytest -q

@@ -30,6 +30,7 @@ import pandas as pd
 
 from smartshop.risk.features import GAP_FEATURES, HISTORY_COLUMNS, derive, session_sql
 from smartshop.simulate.config import SimConfig
+from smartshop.simulate.rescan import partial_count
 from smartshop.simulate.simulator import (
     build_world,
     load_baskets,
@@ -46,6 +47,8 @@ VALUES = [
     "deliberate_value",
     "full_find",
     "partial_find",
+    "partial_hit",
+    "partial_units",
     "true_units",
     "nonscan_units",
     "score",
@@ -84,12 +87,14 @@ def _world_values(s, u, cfg) -> pd.DataFrame:
         u.gt_deliberate & ~u.gt_switched, cfg.partial_detect_deliberate, cfg.partial_detect_nonscan
     )
     n = u.groupby("basket_id").basket_id.transform("size")
-    pick = np.minimum(1.0, cfg.partial_items / n)
-    part = (
-        u.assign(f=np.where(u.gt_nonscan, u.loss_price * pick * detect_partial, 0.0))
-        .groupby("basket_id")
-        .f.sum()
-    )
+    k = partial_count(n, cfg)
+    pick = k / n
+    h = np.where(u.gt_nonscan, pick * detect_partial, 0.0)  # chance this unit is found
+    by = u.basket_id.to_numpy()
+    # chance a partial check finds anything (then the till suggests a full check)
+    hit = 1 - np.exp(pd.Series(np.log1p(-np.minimum(h, 1 - 1e-12))).groupby(by).sum())
+    part_units = pd.Series(np.asarray(k)).groupby(by).first()
+    no_escalation = u.assign(f=u.loss_price * h).groupby("basket_id").f.sum()
     return pd.DataFrame(
         {
             "net_loss": t.gt_net_loss.to_numpy(),
@@ -99,7 +104,19 @@ def _world_values(s, u, cfg) -> pd.DataFrame:
                 cfg.full_detect_nonscan * t.gt_nonscan_value
                 - cfg.full_detect_overscan * t.gt_overscan_value
             ).to_numpy(),
-            "partial_find": t.basket_id.map(part).fillna(0.0).to_numpy(),
+            # expected recovery of a partial check: if it finds anything it escalates to a full
+            # check, which then finds what a full rescan would
+            "partial_find": (
+                t.basket_id.map(hit).to_numpy()
+                * (
+                    cfg.full_detect_nonscan * t.gt_nonscan_value
+                    - cfg.full_detect_overscan * t.gt_overscan_value
+                ).to_numpy()
+                if cfg.escalate_partial
+                else t.basket_id.map(no_escalation).fillna(0.0).to_numpy()
+            ),
+            "partial_hit": t.basket_id.map(hit).fillna(0.0).to_numpy(),
+            "partial_units": t.basket_id.map(part_units).to_numpy(),
             "true_units": t.gt_true_units.to_numpy(),
             "nonscan_units": t.gt_nonscan_units.to_numpy(),
         },
@@ -159,6 +176,15 @@ def build_game(
     return GameData(sessions=out, cfg=cfg, levels=levels)
 
 
+def split_policy(policy, score) -> tuple[np.ndarray, np.ndarray]:
+    """(full, partial) check probabilities from a policy that returns either."""
+    out = policy(score)
+    if isinstance(out, tuple):
+        return np.asarray(out[0], float), np.asarray(out[1], float)
+    p = np.asarray(out, float)
+    return p, np.zeros_like(p)
+
+
 # --------------------------------------------------------------------------------------------
 # Shoppers' best responses and the store's outcomes
 # --------------------------------------------------------------------------------------------
@@ -174,7 +200,7 @@ def responses(g: GameData, policy, q_today: float | None = None) -> np.ndarray:
     if q_today is not None:
         q = np.full((n_v, len(s)), q_today)
     else:
-        q = np.vstack([policy(s[f"v{k}_score"].to_numpy()) for k in range(n_v)])
+        q = np.vstack([sum(split_policy(policy, s[f"v{k}_score"].to_numpy())) for k in range(n_v)])
     q = np.clip(q, 0, 1)
     typ = s.gt_type.to_numpy()
     full = n_v - 1  # the "take everything" version
@@ -198,7 +224,12 @@ def responses(g: GameData, policy, q_today: float | None = None) -> np.ndarray:
 
 
 def outcome(g: GameData, policy, today: bool = False) -> dict:
-    """Expected outcomes of a policy (a function score -> full-rescan probability)."""
+    """Expected outcomes of a policy.
+
+    policy: score -> full-check probability, or score -> (full, partial) probabilities for a
+    policy that also uses partial checks (which escalate to a full check when they find
+    anything). today=True: today's random partial and full checks.
+    """
     s, cfg = g.sessions, g.cfg
     q_total = cfg.status_quo_partial_rate + cfg.status_quo_full_rate
     choice = responses(g, policy, q_today=q_total if today else None)
@@ -207,20 +238,20 @@ def outcome(g: GameData, policy, today: bool = False) -> dict:
     net_loss, deliberate, units = pick("net_loss"), pick("deliberate_value"), pick("true_units")
     full_find, partial_find, score = pick("full_find"), pick("partial_find"), pick("score")
     full_cost = cfg.rescan_fixed_seconds + cfg.full_seconds_per_unit * units
+    # a partial check, plus the full check it escalates to when it finds anything
+    part_cost = (
+        cfg.rescan_fixed_seconds
+        + cfg.partial_seconds_per_unit * pick("partial_units")
+        + cfg.escalate_partial * pick("partial_hit") * cfg.full_seconds_per_unit * units
+    )
     if today:
         p_full = np.full(len(s), cfg.status_quo_full_rate)
         p_part = np.full(len(s), cfg.status_quo_partial_rate)
-        part_cost = cfg.rescan_fixed_seconds + cfg.partial_seconds_per_unit * np.minimum(
-            cfg.partial_items, units
-        )
-        recovered = (p_full * full_find + p_part * partial_find).sum()
-        seconds = (p_full * full_cost + p_part * part_cost).sum()
-        p_any = p_full + p_part
     else:
-        p_full = np.asarray(policy(score))
-        recovered = (p_full * full_find).sum()
-        seconds = (p_full * full_cost).sum()
-        p_any = p_full
+        p_full, p_part = split_policy(policy, score)
+    recovered = (p_full * full_find + p_part * partial_find).sum()
+    seconds = (p_full * full_cost + p_part * part_cost).sum()
+    p_any = p_full + p_part
     honest = deliberate == 0
     typ = s.gt_type.to_numpy()
     ada = typ == "adaptive"
@@ -259,6 +290,25 @@ def random_policy(rate: float):
 def threshold_policy(t: float, floor: float):
     """Rescan everyone above a score threshold; a random floor for everyone else."""
     return lambda score: np.where(np.asarray(score) >= t, 1.0, floor)
+
+
+def mix_policy(t: float, floor: float, cap: float, tau: float, s_full: float):
+    """v1.4: the same overall check probability as smooth_policy, split by risk.
+
+    The random floor is always a full check (unbiased measurement and training labels). Above
+    the floor, a session scoring at least `s_full` gets a full check; one below it gets a partial
+    check of about 20-25% of the basket, which escalates to a full check if it finds anything.
+    """
+    base = smooth_policy(t, floor, cap, tau)
+
+    def policy(score):
+        score = np.asarray(score)
+        p = np.asarray(base(score))
+        extra = np.maximum(p - floor, 0.0)
+        high = score >= s_full
+        return np.minimum(p, floor) + np.where(high, extra, 0.0), np.where(high, 0.0, extra)
+
+    return policy
 
 
 def smooth_policy(t: float, floor: float, cap: float, tau: float):

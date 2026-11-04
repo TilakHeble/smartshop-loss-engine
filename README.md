@@ -23,16 +23,17 @@ Not sure what a term means? See the [glossary](#glossary). The full document lis
 
 Same colleague time as today; test period; shoppers who learn the policy and respond; trust updated over four cycles; mean of 10 runs. SmartShop behaviour is simulated on 2.35m real basket lines and calibrated to published loss research, so these figures show that the method recovers a known truth, not a forecast for Sainsbury's.
 
-| | Today (random rescans) | **Recommended policy (v1.1)** |
+| | Today (random checks) | **Recommended policy** |
 |---|---|---|
-| Loss remaining | \$41,639 | **\$33,430 (−20%)** |
-| Value recovered by rescans | \$1,196 | **\$8,513 (7.1x)** |
-| Recovered per colleague hour | \$11 | **\$75** |
-| Honest shoppers stopped | 5,428 | **1,918 (−65%)** |
+| Loss remaining | \$41,130 | **\$32,216 (−22%)** |
+| Value recovered by checks | \$1,705 | **\$9,320 (5.5x)** |
+| Recovered per colleague hour | \$13 | **\$70** |
+| Honest shoppers stopped | 5,428 | **2,270 (−58%)** |
 
-- **It survives being wrong.** Fourteen stress tests each change one assumption and rerun everything. Loss is 6–22% lower in every one, including a theft method the model was never designed for: barcode switching, where the scan count, pace and deletions all look normal ([v1.1](docs/build_log.md#v11-an-unseen-theft-method-and-closing-the-age-gap)).
+- **It survives being wrong.** Fourteen stress tests each change one assumption and rerun everything. Loss is 5–24% lower in every one, including a theft method the model was never designed for: barcode switching, where the scan count, pace and deletions all look normal ([v1.1](docs/build_log.md#v11-an-unseen-theft-method-and-closing-the-age-gap)).
 - **It is checked for fairness properly.** Every group of honest shoppers is stopped at under half today's rate. A check that separates real gaps from small-group chance found an age gap; scoring each session against baskets of a similar size narrows it *and* catches more.
 - **It covers sessions that never reach the till.** A shoplifter who scans everything, cancels and walks out behind a paying customer loses the store the whole basket, about an eighth of all loss, and no rescan sees it. A colleague prompt to help on every cancellation halves it, genuine cancellers get help, and a dead handset is resumed instead of rescanned ([v1.3](docs/build_log.md#v13-sessions-that-never-reach-the-till-cancellations-cancel-and-walk-dead-handsets)).
+- **Both kinds of check are modelled as they work in store** (v1.4). A partial check covers about 20–25% of the basket and, if it finds anything unscanned, the till suggests a full check; or the till asks for a full check directly. Modelled this way today's checks catch more than earlier versions credited, so the headline above is measured against that stronger baseline. When the till *targets* a shopper, a full check beats a partial one at every mix tested, even short-staffed ([v1.4](docs/build_log.md#v14-partial-checks-that-escalate-and-full-checks)).
 - **Loss stays measurable.** Averaging what targeted rescans find overstates loss about 4x; weighting each rescan by its logged probability is unbiased to within about 1%.
 - **What didn't work is reported, not hidden:** targeted partial checks (full rescans recover more per colleague-minute) and in-app "did you forget?" prompts (usually wrong).
 
@@ -72,7 +73,7 @@ flowchart LR
 
 | Term | Meaning |
 |---|---|
-| **Rescan** | A check of a SmartShop shopper's basket. The till asks for it when the shopper scans the barcode to pay, and a colleague carries it out. A **partial** rescan checks a few items; a **full** rescan checks everything |
+| **Rescan** | A check of a SmartShop shopper's basket. The till asks for it when the shopper scans the barcode to pay, and a colleague carries it out. A **partial** check covers about 20–25% of the items, and if it finds anything unscanned the till suggests a full check; a **full** check covers everything |
 | **Random floor** | Every shopper keeps at least a 2% chance of a full rescan, so nobody can learn they are safe, and the random checks give fair data to learn from and to measure loss with |
 | **Risk score** | The model's estimate that a rescan of this shop would find something missing |
 | **Size-adjusted score** | The risk score compared only with shops of a similar size, so a big family shop is not flagged just for being big |
@@ -146,13 +147,13 @@ On Windows (no `make`), `python -m smartshop.run_all --from <step>` resumes from
 │   ├── serving/             # bundle, exit-time features, FastAPI app, demo bundle, smoke test
 │   ├── monitoring/drift.py  # population stability index
 │   ├── pipeline/weekly.py   # the weekly job: rebuild, drift, release gates, atomic publish
-│   ├── reporting/           # fairness check, trial sizing, fairness mitigation, exits, dashboard snapshot
+│   ├── reporting/           # fairness check, trial sizing, fairness mitigation, exits, partial vs full checks (v1.4), dashboard snapshot
 │   ├── ops/handsets.py      # handset fleet: which handset to hand out (v1.3)
 │   ├── run_all.py           # every step in order, one command (Windows-friendly)
 │   ├── warehouse.py         # connect to DuckDB, run dbt from Python
 │   └── viz.py               # chart style shared with Nectar
 ├── dbt/                     # seeds, staging, marts, 47 data tests
-├── notebooks/               # 01 EDA · 02 simulator validation · 03 basket model · 04 risk model · 05 rescan policy · 06 trust and targeting · 07 headline and stress tests · 08 fairness and trial · 09 unseen theft and size-neutral scores · 10 cancellations and dead handsets
+├── notebooks/               # 01 EDA · 02 simulator validation · 03 basket model · 04 risk model · 05 rescan policy · 06 trust and targeting · 07 headline and stress tests · 08 fairness and trial · 09 unseen theft and size-neutral scores · 10 cancellations and dead handsets · 11 partial and full checks
 ├── models/                  # basket and risk metrics (+ model files, generated by make basket / make risk)
 ├── reports/                 # HTML export + figures
 ├── dashboards/              # Streamlit app + aggregate snapshot (deployable without the data)
@@ -165,7 +166,7 @@ On Windows (no `make`), `python -m smartshop.run_all --from <step>` resumes from
 
 ## How it was built
 
-Ten weekly steps, then two rounds of improvements, each recorded with what it found, including the mistakes: **[read the build log](docs/build_log.md)**.
+Ten weekly steps, then three rounds of improvements, each recorded with what it found, including the mistakes: **[read the build log](docs/build_log.md)**.
 
 | Step | What it added |
 |---|---|
@@ -177,6 +178,7 @@ Ten weekly steps, then two rounds of improvements, each recorded with what it fo
 | Week 10 | Dashboard, fairness check, model card, business case |
 | v1.1 | A theft method the model was never built for; fixing the age fairness gap (which also cut loss further) |
 | v1.3 | Sessions that never reach the till: cancel-and-walk, genuine cancellations, dead handsets |
+| v1.4 | Partial checks modelled as they work in store (20–25% of the basket, escalating to a full check); targeted checks stay full |
 
 Companion project: the [Nectar Offer Engine](https://github.com/TilakHeble/nectar-offer-engine), which chooses personalised Nectar prices for the same shoppers.
 

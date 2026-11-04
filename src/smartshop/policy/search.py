@@ -25,6 +25,7 @@ from smartshop.policy.game import (
     GameData,
     build_game,
     fit_to_budget,
+    mix_policy,
     outcome,
     random_policy,
     smooth_policy,
@@ -57,6 +58,10 @@ def make_policy(params: dict):
         return random_policy(params["rate"])
     if k == "threshold":
         return threshold_policy(params["t"], params["floor"])
+    if k == "mix":
+        return mix_policy(
+            params["t"], params["floor"], params["cap"], params["tau"], params["s_full"]
+        )
     return smooth_policy(params["t"], params["floor"], params["cap"], params["tau"])
 
 
@@ -91,7 +96,10 @@ def recalibrate(g: GameData, params: dict, hours: float) -> dict:
     if k == "threshold":
         _, t = fit_to_budget(g, lambda t: threshold_policy(t, params["floor"]), hours, 0, 1)
         return {**params, "t": t}
-    make = lambda t: smooth_policy(t, params["floor"], params["cap"], params["tau"])  # noqa: E731
+
+    def make(t):
+        return make_policy({**params, "t": t})
+
     _, t = fit_to_budget(g, make, hours, -12, 12, iters=30)
     return {**params, "t": t}
 

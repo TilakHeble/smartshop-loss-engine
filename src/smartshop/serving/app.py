@@ -117,7 +117,7 @@ async def lifespan(_: FastAPI):
     yield
 
 
-app = FastAPI(title="SmartShop rescan decisions", version="1.3.0", lifespan=lifespan)
+app = FastAPI(title="SmartShop rescan decisions", version="1.4.0", lifespan=lifespan)
 
 
 @app.middleware("http")

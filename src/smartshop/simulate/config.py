@@ -111,16 +111,24 @@ class SimConfig:
     # [ECR18] ~12% of users audited (2-17%); partial rescans dominate [ECR22]. Split assumed.
     status_quo_partial_rate: float = 0.10
     status_quo_full_rate: float = 0.02
-    partial_items: int = 3  # assumption: colleague checks 3 units picked from the bags
+    # A partial check covers a share of the basket (store practice: about 20-25% of items, at
+    # least 2). If it finds anything unscanned, the till suggests a full check of the rest
+    # (v1.4; earlier versions checked a fixed 3 items and stopped there).
+    partial_share: float = 0.2
+    partial_min_items: int = 2
+    escalate_partial: bool = True
 
     # --- What a rescan finds and costs (assumptions) --------------------------------------
     full_detect_nonscan: float = 0.97
     full_detect_overscan: float = 0.95
-    partial_detect_nonscan: float = 0.97  # if a picked unit was missed by mistake
-    # Items skipped on purpose are usually concealed (pocket, bottom of a bag), so a quick
-    # partial check rarely picks them; a full rescan empties the bags. Assumption, chosen so
-    # partial rescans find errors about as rarely as [ECR18] reports (2.88% of audits).
-    partial_detect_deliberate: float = 0.15
+    # A partial check is quick: the colleague picks items from the top of the bags and checks
+    # them against the scan list, so a picked item that was missed is not always noticed.
+    # Items skipped on purpose are usually concealed (pocket, bottom of a bag), so a partial
+    # check rarely reaches them; a full rescan empties the bags. Both are assumptions, chosen
+    # (v1.4, for a 20% sample) so partial checks find something about as rarely as [ECR18]
+    # reports (2.88% of audits).
+    partial_detect_nonscan: float = 0.53  # if a picked unit was missed by mistake
+    partial_detect_deliberate: float = 0.085
     rescan_fixed_seconds: float = 45.0
     full_seconds_per_unit: float = 4.0
     partial_seconds_per_unit: float = 6.0

@@ -6,7 +6,7 @@ import pytest
 
 from smartshop.config import WAREHOUSE_PATH
 from smartshop.simulate.config import SimConfig
-from smartshop.simulate.rescan import FULL, NONE, PARTIAL, rescan_outcomes
+from smartshop.simulate.rescan import FULL, NONE, PARTIAL, partial_count, rescan_outcomes
 from smartshop.simulate.simulator import build_world, load_baskets, simulate, simulate_behaviour
 from smartshop.warehouse import connect
 
@@ -101,8 +101,12 @@ def test_rescans_find_only_what_is_there(world):
     assert none.empty
     assert (full.found_missing_units <= truth.ns.reindex(full.index)).all()
     assert (full.found_over_units <= truth.ov.reindex(full.index)).all()
-    assert (part.found_over_units == 0).all()  # a partial rescan cannot see double scans
-    assert (part.units_checked <= cfg.partial_items).all()
+    # a partial check cannot see double scans; only one that escalated to a full check can
+    assert (part[~part.escalated].found_over_units == 0).all()
+    assert (part[part.escalated].found_missing_units > 0).all()  # it escalates only on a find
+    n = u.groupby("basket_id").size().reindex(part.index)
+    sample = partial_count(n.to_numpy(), cfg)  # about 20% of the basket, at least 2 items
+    assert (part.units_checked.to_numpy() <= sample).all()  # the sample (any full stage is extra)
     assert full.found_missing_units.sum() > part.found_missing_units.sum()
     assert (full.rescan_seconds >= part.rescan_seconds.reindex(full.index)).mean() > 0.9
 
