@@ -226,6 +226,9 @@ Full analysis: [`notebooks/04_risk_model.ipynb`](notebooks/04_risk_model.ipynb).
 
 ## Week 6: the rescan game
 
+> *Build log: the first version of the policy (v1.0). [v1.1](#v11-an-unseen-theft-method-and-closing-the-age-gap) improves it; the front page shows the current results.*
+
+
 The policy decides **who gets a full rescan, with what probability**, using exactly today's colleague time. It must work against shoppers who learn it.
 
 - **The game.** The store leads: it commits to a function from risk score to rescan probability. Shoppers follow: opportunists steal less when a rescan is likelier; adaptive shoppers choose to take 0, 25, 50 or 100% of their usual haul, since taking less keeps their scan log calmer and their score lower. Every version of reality is simulated once from the same random draws, so any policy is evaluated exactly against shoppers' best responses.
@@ -280,6 +283,9 @@ Full analysis: [`notebooks/06_trust_and_targeting.ipynb`](notebooks/06_trust_and
 
 ## Week 8: the headline, measurement and stress tests
 
+> *Build log: these are v1.0's results (−12% loss). [v1.1](#v11-an-unseen-theft-method-and-closing-the-age-gap) compares sessions with similar-sized baskets and reaches −20%, the figure on the front page; the measurement findings still apply.*
+
+
 **Headline** (test period, today's colleague time, shoppers respond, trust over four cycles, 10 runs):
 
 | | Today | Recommended | Change |
@@ -314,6 +320,9 @@ So every rescan's probability is logged with its outcome (the API returns it wit
 Full analysis: [`notebooks/07_headline_and_stress_tests.ipynb`](notebooks/07_headline_and_stress_tests.ipynb). Stress tests: `python -m smartshop.experiments.sensitivity` (about 9 minutes).
 
 ## Week 9: the rescan decision API and the weekly job
+
+> *Build log: the API as first built. v1.1 adds `size_adjusted_score` to every response, and [v1.3](#v13-sessions-that-never-reach-the-till-cancellations-cancel-and-walk-dead-handsets) adds cancelled sessions and dead devices.*
+
 
 When a SmartShop shopper goes to pay, the till or app sends the session's scan log to `POST /decide` and gets back a decision a colleague can act on:
 
@@ -376,6 +385,9 @@ make docker && make smoke   # build, start on ./artifacts, smoke-test
 ```
 
 ## Week 10: fairness, dashboard, model card and business case
+
+> *Build log: the fairness check of v1.0. The age gap it found is narrowed in [v1.1](#v11-an-unseen-theft-method-and-closing-the-age-gap); the model card has the current figures.*
+
 
 **The full fairness check** runs on the policy as it would operate (shoppers respond, trust updates over four cycles). The harm is being asked for a rescan **when honest**.
 

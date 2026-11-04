@@ -10,6 +10,7 @@ Rebuild the snapshot from the data with `python -m smartshop.reporting.snapshot`
 
 from __future__ import annotations
 
+import inspect
 import json
 import math
 from pathlib import Path
@@ -28,6 +29,11 @@ VERDICT_COLOURS = {
     "gap explained by basket size": AMBER,
     "review": ORANGE,
 }
+
+# hide the arrow on a "baseline" badge where this Streamlit version supports it
+NO_ARROW = (
+    {"delta_arrow": "off"} if "delta_arrow" in inspect.signature(st.metric).parameters else {}
+)
 
 st.set_page_config(page_title="SmartShop Loss Engine", page_icon="🛒", layout="wide")
 
@@ -267,33 +273,60 @@ with tabs[1]:
 
 # ------------------------------------------------------------------ Operations
 with tabs[2]:
-    st.subheader("Rescans through the day, per store")
+    st.subheader("Rescans through the day")
     hr = pd.DataFrame(d["hourly"])
-    n = period["stores"]
+    hr = hr[(hr.hour >= 7) & (hr.hour <= 22)]  # trading hours; the night has too few shops
     hl = pd.concat(
         [
-            hr.assign(arm="Today", rescans=hr.today_rescans_per_day / n),
-            hr.assign(arm="Recommended", rescans=hr.policy_rescans_per_day / n),
+            hr.assign(
+                arm="Today",
+                per100=100 * hr.today_rescans_per_day / hr.sessions_per_day,
+                share=hr.today_rescans_per_day / hr.today_rescans_per_day.sum(),
+            ),
+            hr.assign(
+                arm="Recommended",
+                per100=100 * hr.policy_rescans_per_day / hr.sessions_per_day,
+                share=hr.policy_rescans_per_day / hr.policy_rescans_per_day.sum(),
+            ),
         ]
     )
-    st.altair_chart(
-        alt.Chart(hl)
-        .mark_bar()
-        .encode(
-            x=alt.X("hour:O", title="Hour of day"),
-            y=alt.Y("rescans:Q", title="Rescans per store per day"),
-            color=alt.Color("arm:N", scale=ARMS, title=None),
-            xOffset="arm:N",
-            tooltip=["hour", "arm", alt.Tooltip("rescans:Q", format=".2f")],
+    left, right = st.columns(2)
+    with left:
+        st.markdown("**Rescans per 100 SmartShop shops, by hour**")
+        st.altair_chart(
+            alt.Chart(hl)
+            .mark_line(point=True)
+            .encode(
+                x=alt.X("hour:O", title="Hour of day", axis=alt.Axis(labelAngle=0)),
+                y=alt.Y("per100:Q", title="Rescans per 100 shops", scale=alt.Scale(zero=True)),
+                color=alt.Color("arm:N", scale=ARMS, title=None),
+                tooltip=["hour", "arm", alt.Tooltip("per100:Q", format=".1f")],
+            )
+            .properties(height=300),
+            width="stretch",
         )
-        .properties(height=320),
-        width="stretch",
-    )
+    with right:
+        st.markdown("**Share of the day's rescans, by hour (for staffing)**")
+        st.altair_chart(
+            alt.Chart(hl)
+            .mark_bar()
+            .encode(
+                x=alt.X("hour:O", title="Hour of day", axis=alt.Axis(labelAngle=0)),
+                y=alt.Y("share:Q", axis=alt.Axis(format="%"), title="Share of rescans"),
+                color=alt.Color("arm:N", scale=ARMS, title=None),
+                xOffset="arm:N",
+                tooltip=["hour", "arm", alt.Tooltip("share:Q", format=".1%")],
+            )
+            .properties(height=300),
+            width="stretch",
+        )
     st.caption(
-        "Fewer rescans than today, because the recommended policy uses only full rescans "
-        "(each takes longer than a partial one) at the same colleague time. Peaks follow "
-        "footfall; the policy does not use time of day, so evening shoppers are not singled "
-        "out. Simulated stores are small; a real store scales with its SmartShop sessions."
+        "Today 12 in every 100 shops are rescanned at random, mostly with quick partial checks. "
+        "The recommended policy rescans about 3 to 5 in 100, all full rescans, so it uses the "
+        "same colleague time on fewer, more thorough checks aimed at the riskiest shops. The rate "
+        "is much the same through the busy hours: the policy does not use time of day, so evening "
+        "shoppers are not singled out, and colleague demand follows footfall exactly as today "
+        "(peak around 5pm)."
     )
 
 # ------------------------------------------------------------------ Fairness
@@ -501,10 +534,11 @@ with tabs[6]:
             col.metric(
                 "Cancel-and-walk loss",
                 money(r["walk-out loss"]),
-                None
+                "baseline"
                 if arm == "Today"
                 else f"{r['walk-out loss'] / today_row['walk-out loss'] - 1:.0%} vs today",
-                delta_color="inverse",
+                delta_color="off" if arm == "Today" else "inverse",
+                **(NO_ARROW if arm == "Today" else {}),
             )
             col.metric("Colleague hours on help prompts", f"{r['colleague hours on prompts']:.1f}")
             col.metric(
