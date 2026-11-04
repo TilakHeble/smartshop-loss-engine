@@ -17,7 +17,7 @@
 ## Intended use
 
 - **For:** choosing which SmartShop sessions get a full rescan at a store's existing colleague time, so rescans find more and honest shoppers are stopped less. Also for measuring total loss without bias from the logged probabilities.
-- **Users:** store colleagues at the exit (who make the final call), loss-prevention and store-operations analysts.
+- **Users:** the SmartShop till (which shows the decision when the shopper scans to pay), store colleagues who carry out checks and handle anything found, and loss-prevention and store-operations analysts.
 - **Not for:**
   - accusing anyone. A rescan request is an operational check, and the reasons are written to be neutral;
   - any decision beyond the rescan: no bans, no withdrawal of SmartShop, no change to Nectar prices or points;
@@ -87,7 +87,7 @@ This is a design assessment for a portfolio project, not legal advice. A real de
 |---|---|
 | **Is a DPIA needed?** | Yes. The design profiles every SmartShop session at scale and uses an innovative technology, both ICO triggers for a DPIA (Article 35) |
 | **Lawful basis** | Detecting deliberate non-scanning is *prevention or detection of crime*, a recognised legitimate interest since 5 February 2026 (Article 6(1)(ea), Annex 1), so no balancing test is needed for it. The same profiling also targets honest mistakes and measures loss, which are ordinary legitimate interests (Article 6(1)(f)) and need a documented legitimate interests assessment. Necessity is supported by the result: fewer honest shoppers stopped at the same colleague time |
-| **Automated decision-making** | A colleague makes the final call and sees the reasons, so the request should not be *solely* automated. Even if it were judged solely automated and significant, Article 22C safeguards are designed in: shoppers are told how rescans are chosen, every decision is explained and logged, and a shopper can ask a colleague, make representations and contest a decision through the complaints route |
+| **Automated decision-making** | The decision to ask for a check is automated, as today's random selection already is; anything that follows (what is found, any conversation, any consequence) is handled by a colleague. Whether being asked for a check is a *significant* decision is for the DPIA to settle; either way Article 22C safeguards are designed in: shoppers are told how rescans are chosen, every decision is explained and logged, and a shopper can ask a colleague, make representations and contest a decision through the complaints route |
 | **Special category data** | None used. Demographics (anonymised, not special category) are used only for the fairness check, kept apart in the warehouse, and a test fails if any feature table carries one |
 | **Data minimisation** | Features come from the scan log the app already records and the member's own Nectar history. No camera, location, device or payment data. Channel, time of day and tenure are deliberately not scored |
 | **Transparency** | The privacy notice and SmartShop terms should say that rescans are chosen partly at random and partly by risk from scanning patterns and history, and that clean rescans reduce future checks |

@@ -96,10 +96,11 @@ tabs = st.tabs(
 with tabs[0]:
     with st.expander("New here? How to read this dashboard"):
         st.markdown(
-            "- **What it is:** a system that decides which SmartShop shoppers a colleague should "
-            "rescan at the exit. **Today** means the current way (about 12% of shoppers checked "
-            "at random); **Recommended** means this project's policy, with the same colleague "
-            "time.\n"
+            "- **What it is:** when a SmartShop shopper scans the barcode at the till to pay, the "
+            "system decides whether the till asks for their basket to be checked (a colleague "
+            "then carries out the check). **Today** means the current way (about 12% of shoppers "
+            "picked at random); **Recommended** means this project's policy, with the same "
+            "colleague time.\n"
             "- **Where the numbers come from:** SmartShop data is not public, so shopper "
             "behaviour is simulated on real grocery baskets (dunnhumby, in US dollars) and "
             "checked against published loss research. The figures show the method works in "
@@ -273,7 +274,8 @@ with tabs[1]:
         p = max(pol["floor"], smooth(score, pol["t"], pol["floor"], pol["cap"], pol["tau"]) * mult)
         st.metric("Full-rescan probability", f"{p:.1%}")
         st.caption(
-            f"Trust multiplier {mult:.2f}. A colleague sees the reasons (for example "
+            f"Trust multiplier {mult:.2f}. If a check is asked for, the colleague who carries "
+            "it out sees the reasons (for example "
             "'long pause between scans') and the shopper's usual high-risk items that are "
             "missing, to look at first."
         )

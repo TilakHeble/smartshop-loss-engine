@@ -66,7 +66,7 @@ The simulator shows the method works; a trial shows what it is worth.
 | Dead handsets | Hand out the handset longest on the rack; replace batteries that keep failing; resume the session, never make the customer rescan |
 | A new way to steal | Random full rescans keep finding whatever is missed; the weekly retrain learns from them; finds on low-score sessions are the early warning (tested with barcode switching) |
 | Losing sight of true loss | Every decision logs its probability; unbiased weighted estimates, with the random floor as the cross-check |
-| Customer trust | Neutral reasons, a colleague makes the final call, clean rescans reduce future checks, and every shopper can still be checked at random |
+| Customer trust | The till only asks for a check, as it does today; neutral reasons; a colleague handles anything found; clean rescans reduce future checks; and every shopper can still be checked at random |
 
 ## What I would do next (v2)
 

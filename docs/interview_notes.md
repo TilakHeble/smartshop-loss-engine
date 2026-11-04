@@ -6,7 +6,7 @@
 
 ## The 30-second version
 
-> SmartShop loses money when items leave unscanned, and today about 12% of sessions are rescanned at random. I built a system that decides who to rescan from the scan log and the shopper's Nectar history, while keeping a small random floor. In a simulation calibrated to published loss research it cuts loss by about 20%, recovers seven times as much, and stops 65% fewer honest shoppers, with the same colleague time.
+> SmartShop loses money when items leave unscanned, and today about 12% of sessions are rescanned at random. I built a system that makes the till's decision, when the shopper scans to pay, from the scan log and their Nectar history instead of at random, while keeping a small random floor. In a simulation calibrated to published loss research it cuts loss by about 20%, recovers seven times as much, and stops 65% fewer honest shoppers, with the same colleague time.
 
 ## The 2-minute version
 
@@ -59,7 +59,7 @@ There were fewer than 1,000 labels in the training period. I compared candidates
 The model learned "will a rescan find *anything*", and big baskets nearly always contain an honest slip, so they scored high. But they're also the slowest to rescan. Comparing like with like moved rescans to sessions that look unusual for their size: quicker rescans, more of them, more of them on theft. I chose the strength on the tuning period, not the test period.
 
 **"Is this legal? It's profiling customers."**
-It needs a DPIA. Crime prevention is now a recognised legitimate interest under the Data (Use and Access) Act 2025, but catching honest mistakes still needs a balancing test. A colleague makes the final call, every decision is explained and logged, and no demographics, channel or time of day go into the model. Age is a protected characteristic, so the remaining age gap is a decision the business should make and record.
+It needs a DPIA. Crime prevention is now a recognised legitimate interest under the Data (Use and Access) Act 2025, but catching honest mistakes still needs a balancing test. The till only asks for a check, as it already does at random today, and a colleague handles anything found; every decision is explained and logged, and no demographics, channel or time of day go into the model. Age is a protected characteristic, so the remaining age gap is a decision the business should make and record.
 
 **"What would you do differently?"**
 I'd get richer labels: whether a missing item was concealed or in the bag. A model trained on *why* items were missing reached 82% of deliberate loss against 53%, so label quality is the bottleneck, not the algorithm. I'd also make capacity depend on queues by hour.

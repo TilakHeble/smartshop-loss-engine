@@ -2,9 +2,9 @@
 
 [![ci](https://github.com/TilakHeble/smartshop-loss-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/TilakHeble/smartshop-loss-engine/actions/workflows/ci.yml) [![Streamlit app](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://smartshop-loss-engine.streamlit.app/)
 
-**In one sentence:** a system that decides which SmartShop shoppers a colleague should rescan, so the same staff time catches more loss and stops far fewer honest shoppers.
+**In one sentence:** when a SmartShop shopper scans the barcode at the till to pay, this system decides whether the till asks for their basket to be checked, so the same staff time catches more loss and far fewer honest shoppers are stopped.
 
-**The problem.** With SmartShop (scan-as-you-shop) customers scan their own items. Some items leave unscanned, a few on purpose and many by honest mistake. Today stores rescan about 12% of shoppers at random, so most checks stop honest people and find little. This project chooses who to rescan from the scan log and the shopper's Nectar history, while keeping a small random chance for everyone, so the checks can still be measured, can't be gamed, and give colleagues a neutral reason.
+**The problem.** With SmartShop (scan-as-you-shop) customers scan their own items. Some items leave unscanned, a few on purpose and many by honest mistake. Today the till picks about 12% of shoppers at random for a check (a "rescan", carried out by a colleague), so most checks stop honest people and find little. This project makes that till decision from the scan log and the shopper's Nectar history instead, while keeping a small random chance for everyone, so the checks can still be measured, can't be gamed, and come with a neutral reason.
 
 ## Start here
 
@@ -46,16 +46,16 @@ flowchart LR
     H["Nectar history<br/>usual basket · past rescans"] --> R
     R --> S["Size-adjusted score<br/>vs similar-sized baskets"]
     S --> P["Rescan policy<br/>2% random floor · 50% cap<br/>trust for clean regulars"]
-    P --> D["Exit decision API<br/>reasons · look here first"]
-    D --> C["Colleague rescans"]
+    P --> D["Till decision when the shopper scans to pay<br/>check or not · reasons · look here first"]
+    D --> C["Colleague carries out the check"]
     C --> L["Outcome logged<br/>with its probability"]
     L --> W["Weekly job<br/>retrain · drift and fairness gates"]
     L --> M["Unbiased loss estimate"]
     W --> R
 ```
 
-1. **Score.** At the exit, a logistic model reads the session's scan log and the member's Nectar history (no demographics, channel or time of day) and estimates the chance a rescan finds something. The score is then compared with sessions of a similar basket size, because big baskets nearly always hold an honest slip and are the slowest to rescan.
-2. **Decide.** The score sets a rescan *probability* between a 2% random floor (anyone can be checked) and a 50% cap (nobody is checked every trip), lowered for regulars whose recent rescans were clean. A random draw decides, so no shopper can learn a safe pattern. The colleague sees plain-English reasons and the shopper's usual high-risk items that are missing.
+1. **Score.** When the shopper scans the barcode at the till to pay, a logistic model reads the session's scan log and the member's Nectar history (no demographics, channel or time of day) and estimates the chance a rescan finds something. The score is then compared with sessions of a similar basket size, because big baskets nearly always hold an honest slip and are the slowest to rescan.
+2. **Decide.** The score sets a rescan *probability* between a 2% random floor (anyone can be checked) and a 50% cap (nobody is checked every trip), lowered for regulars whose recent rescans were clean. A random draw decides, and the till shows the result, so no shopper can learn a safe pattern. If a check is asked for, the colleague who carries it out sees plain-English reasons and the shopper's usual high-risk items that are missing.
 3. **Learn and measure.** Every decision is logged with its probability. Each week the model retrains on random full rescans and is published only if budget, drift and fairness gates pass; total loss is estimated without bias from the logged probabilities.
 
 ## What makes it different
@@ -72,7 +72,7 @@ flowchart LR
 
 | Term | Meaning |
 |---|---|
-| **Rescan** | A colleague checks a SmartShop shopper's basket at the exit. A **partial** rescan checks a few items; a **full** rescan checks everything |
+| **Rescan** | A check of a SmartShop shopper's basket. The till asks for it when the shopper scans the barcode to pay, and a colleague carries it out. A **partial** rescan checks a few items; a **full** rescan checks everything |
 | **Random floor** | Every shopper keeps at least a 2% chance of a full rescan, so nobody can learn they are safe, and the random checks give fair data to learn from and to measure loss with |
 | **Risk score** | The model's estimate that a rescan of this shop would find something missing |
 | **Size-adjusted score** | The risk score compared only with shops of a similar size, so a big family shop is not flagged just for being big |
@@ -89,7 +89,7 @@ flowchart LR
 - **No demographics or protected characteristics** in any model; they are used only for the fairness check. Channel, time of day and tenure are not scored either (they caused unfair flags in week 5), and proxies are checked.
 - **Stopping an honest shopper is a cost** in the objective, not only £ recovered.
 - **No history is not a reason to rescan more:** new SmartShop users get the standard rate.
-- **A colleague makes the final call.** Every decision comes with a plain-English reason and the items to check.
+- **The system only asks for a check; it never accuses.** The colleague who carries out the check sees a plain-English reason and the items to look at first, and handles anything found.
 - **Rescans never touch Nectar prices or points.** The Nectar link is only used positively.
 
 ## Run it
