@@ -94,6 +94,25 @@ tabs = st.tabs(
 
 # ------------------------------------------------------------------ Overview
 with tabs[0]:
+    with st.expander("New here? How to read this dashboard"):
+        st.markdown(
+            "- **What it is:** a system that decides which SmartShop shoppers a colleague should "
+            "rescan at the exit. **Today** means the current way (about 12% of shoppers checked "
+            "at random); **Recommended** means this project's policy, with the same colleague "
+            "time.\n"
+            "- **Where the numbers come from:** SmartShop data is not public, so shopper "
+            "behaviour is simulated on real grocery baskets (dunnhumby, in US dollars) and "
+            "checked against published loss research. The figures show the method works in "
+            "that world; a store trial would prove it for real.\n"
+            "- **The tabs:** *Policy* shows how a shop's risk becomes a rescan chance; *Store "
+            "operations* when rescans happen; *Fairness* whether any group of honest shoppers "
+            "is stopped more; *Measuring loss & trial* how to measure loss and test it in "
+            "stores; *Robustness* whether the result survives different assumptions; "
+            "*Cancellations & handsets* shops that never reach the till; *Model health* the "
+            "latest weekly safety checks.\n"
+            "- **Two terms:** a **full rescan** checks every item; the **random floor** gives "
+            "every shopper at least a 2% chance of one, so nobody can learn they are safe."
+        )
     st.subheader("Same colleague time, less loss, far fewer honest shoppers stopped")
     c1, c2, c3, c4 = st.columns(4)
     c1.metric(

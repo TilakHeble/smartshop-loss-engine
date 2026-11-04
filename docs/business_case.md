@@ -1,5 +1,7 @@
 # Rescanning the right SmartShop sessions
 
+[← Back to the project page](../README.md) · [All documents](README.md)
+
 *A two-page summary of the SmartShop Loss Engine for a commercial and store-operations audience. Technical detail is in the [README](../README.md) and the [model card](model_card.md).*
 
 ## The problem

@@ -1,5 +1,7 @@
 # Model card: SmartShop rescan decision
 
+[← Back to the project page](../README.md) · [All documents](README.md)
+
 | | |
 |---|---|
 | **System** | A session risk model plus a randomised rescan policy and a Nectar-linked trust rule |

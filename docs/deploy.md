@@ -1,5 +1,7 @@
 # Deploying the dashboard and the API
 
+[← Back to the project page](../README.md) · [All documents](README.md)
+
 ## Dashboard on Streamlit Community Cloud (free, about 3 minutes)
 
 The dashboard reads only `dashboards/snapshot/snapshot.json` (aggregates, no member data), so it

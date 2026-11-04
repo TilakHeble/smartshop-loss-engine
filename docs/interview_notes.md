@@ -1,5 +1,7 @@
 # Interview notes: SmartShop Loss Engine
 
+[← Back to the project page](../README.md) · [All documents](README.md)
+
 *How to explain the project in 30 seconds, in 2 minutes, and under pressure. Numbers are from the simulation (test period, same colleague time as today).*
 
 ## The 30-second version
