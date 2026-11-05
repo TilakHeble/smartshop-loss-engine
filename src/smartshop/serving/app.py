@@ -1,10 +1,10 @@
-"""Rescan decision API: called when a SmartShop shopper finishes and goes to pay.
+"""Check decision API: called when a SmartShop session ends (paid, cancelled or device died).
 
     GET  /health                 process is up
     GET  /ready                  a bundle is loaded (Docker HEALTHCHECK)
     GET  /model                  bundle version, policy, trust rule, budget
     GET  /members/{id}/trust     the trust multiplier and clean-rescan count a member has earned
-    POST /decide                 one exit decision: rescan or not, with probability and reasons
+    POST /decide                 one decision: check or not, finish a cancel, or resume
 
 Every decision returns the probability it was made with and the random draw; both must be logged
 with the rescan outcome, because loss is estimated afterwards by inverse-probability weighting
@@ -59,15 +59,26 @@ class DecideRequest(BaseModel):
     )
     ended_by: Literal["checkout", "cancelled", "device_failure"] = Field(
         default="checkout",
-        description="checkout: the till barcode was scanned (rescan decision). cancelled: the "
-        "shopper cancelled SmartShop before the till (help prompt, never a rescan). "
-        "device_failure: the handset or phone died (resume; never a risk signal)",
+        description="checkout: the till barcode was scanned (check decision). cancelled: the "
+        "shopper cancelled SmartShop before the till (finish at the SmartShop point, never a "
+        "check). device_failure: the handset or phone died (resume; never a risk signal)",
+    )
+    unfinished_cancels_90d: int = Field(
+        default=0,
+        ge=0,
+        description="from the SmartShop platform: cancels with items in the last 90 days that "
+        "were never finished at the SmartShop point or paid at a till",
+    )
+    unfinished_since_last_checkout: bool = Field(
+        default=False, description="at least one of those since the member's last checkout"
     )
 
 
 class DecideResponse(BaseModel):
     session_id: str
-    decision: Literal["full_rescan", "no_rescan", "help_prompt", "no_prompt", "resume"]
+    decision: Literal[
+        "full_rescan", "no_rescan", "finish_at_smartshop_point", "no_action", "resume"
+    ]
     rescan_probability: float
     draw: float
     audit_sample: bool
@@ -79,7 +90,6 @@ class DecideResponse(BaseModel):
     known_member: bool
     unknown_products: int
     ended_by: Literal["checkout", "cancelled", "device_failure"]
-    help_priority: Literal["high", "standard"] | None
     bundle_version: str
 
 
@@ -117,7 +127,7 @@ async def lifespan(_: FastAPI):
     yield
 
 
-app = FastAPI(title="SmartShop rescan decisions", version="1.4.0", lifespan=lifespan)
+app = FastAPI(title="SmartShop rescan decisions", version="1.5.0", lifespan=lifespan)
 
 
 @app.middleware("http")
@@ -196,6 +206,8 @@ def decide(req: DecideRequest) -> DecideResponse:
         events,
         draw=req.draw,
         ended_by=req.ended_by,
+        unfinished_cancels_90d=req.unfinished_cancels_90d,
+        unfinished_since_last_checkout=req.unfinished_since_last_checkout,
     )
     resp = DecideResponse(
         session_id=req.session_id, bundle_version=b.manifest["bundle_version"], **out

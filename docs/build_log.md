@@ -2,7 +2,7 @@
 
 [← Back to the project page](../README.md)
 
-The project was built in ten weekly steps and then improved three times. Each section reports what that step found at the time, including the mistakes it caught, so the figures in weeks 6–10 are the first version's; the [v1.1](#v11-an-unseen-theft-method-and-closing-the-age-gap) [v1.3](#v13-sessions-that-never-reach-the-till-cancellations-cancel-and-walk-dead-handsets) and [v1.4](#v14-partial-checks-that-escalate-and-full-checks) sections at the end improve on them; v1.4 restates the headline.
+The project was built in ten weekly steps and then improved four times. Each section reports what that step found at the time, including the mistakes it caught, so the figures in weeks 6–10 are the first version's; the [v1.1](#v11-an-unseen-theft-method-and-closing-the-age-gap), [v1.3](#v13-sessions-that-never-reach-the-till-cancellations-cancel-and-walk-dead-handsets), [v1.4](#v14-partial-checks-that-escalate-and-full-checks) and [v1.5](#v15-cancellations-and-dead-handsets-with-what-the-store-really-has) sections at the end improve on them; v1.4 restates the headline, and v1.5 replaces v1.3's cancellation and handset ideas.
 
 | Week | | Week | |
 |---|---|---|---|
@@ -395,6 +395,8 @@ A middling raw score (0.49) becomes 0.70 once the session is compared with baske
 
 ## v1.3: sessions that never reach the till (cancellations, cancel-and-walk, dead handsets)
 
+> **Superseded by [v1.5](#v15-cancellations-and-dead-handsets-with-what-the-store-really-has).** v1.3 assumed colleagues could get a prompt and that the store hands out handsets; neither is true in store. Kept as the record of what was tried.
+
 Up to v1.1 every session was assumed to reach the till barcode, where the rescan decision is made. In store, some never get there:
 
 - **Genuine cancellation.** A shopper scans a few items (or most of them), gets an urgent call or can't find what they came for, cancels SmartShop and leaves the items. Nothing is lost.
@@ -437,7 +439,7 @@ The API takes `ended_by: "checkout" | "cancelled" | "device_failure"` on `/decid
 
 When the till asks for a check, it is one of two kinds, and a colleague carries it out:
 
-- **Partial check:** the colleague checks a sample of the basket, about 20–25% of the items (at least 2). **If anything is unscanned, the till suggests a full check** of the whole basket.
+- **Partial check:** the colleague checks a sample of the basket with the SmartShop check device, about 20–25% of the items (at least 2). **If anything is unscanned, the check device suggests a full check** of the whole basket.
 - **Full check:** every item, straight away.
 
 Up to v1.3 a partial check was modelled as a fixed 3 items that stopped there, whatever the basket size. That undersold today's checks. v1.4 models them as above. The detection rate within a quick sample is recalibrated (0.53 for a missed item, 0.085 for a concealed one) so partial checks still find something about as often as [ECR18] reports: **3.0% simulated, 2.88% published**. Training labels and the loss estimate still use full checks only. An escalated partial check is excluded, because that basket was chosen by what the sample found.
@@ -475,6 +477,46 @@ A bigger sample finds more per check but takes longer, so at the same colleague 
 | With the 25% rule, a partial check for targeted shoppers still loses to a full one | Targeted checks stay full |
 | The simulator's "today" stays at 20%, so the headline is unchanged | A store trial could compare 25% and 10% arms to measure deterrence directly |
 
+## v1.5: cancellations and dead handsets with what the store really has
+
+v1.3 assumed two things that are not true in store: that a colleague near the exit could get a prompt (colleagues carry no device; the SmartShop check device at the SmartShop checkout only logs in and scans the barcode a shopper gets for a check), and that the store hands out handsets (customers pick their own from the stand, or use their phone). v1.5 replaces the help prompt and the handset hand-out with ideas that need neither.
+
+| | Today | v1.5 |
+|---|---|---|
+| Cancelled with items scanned | The session just ends; the basket is left somewhere | **Idea 1:** the handset or app asks the shopper to leave the basket at the SmartShop checkout and shows a cancel barcode, which a colleague scans on the check device. A cancel never finished there is an **unfinished cancel**, counted for the first time |
+| After unfinished cancels | Nothing | **Idea 2:** the member's next SmartShop shop that reaches the till gets a full check, with a neutral reason. Recommended rule: **two unfinished cancels in 90 days** |
+| Handsets | Customers pick any handset | **A:** handsets that die twice in 30 days get a new battery. **B:** a handset back on the stand for under 90 minutes asks the customer to take another |
+| Handset or phone dies | Customer rescans everything | **D:** resume on another handset or at a till from the Nectar card; never a risk signal |
+
+| Test period, base assumptions | Today | 1: finish at the point | 1+2: after one | **1+2: two in 90 days** |
+|---|---|---|---|---|
+| Cancel-and-walk loss | \$5,912 (13% of all loss) | \$5,912 | \$5,912 | \$5,912 |
+| Genuine cancels finished at the point (of 1,146) | 0 | 806 | 806 | 806 |
+| Unfinished cancels that were walk-outs | not visible | 138 of 478 (29%) | same | same |
+| Full checks from unfinished cancels | 0 | 0 | 442 | **72** |
+| Honest members given one (of 2,123) | 0 | 0 | 321 (15%) | **41 (2%)** |
+| Recovered by those checks | 0 | 0 | \$1,147 (\$75 per colleague hour) | **\$384 (\$154 per colleague hour)** |
+| Colleague hours (finishing cancels + these checks) | 0 | 13.4 | 28.8 | 15.9 |
+
+| Dead handsets per 1,000 sessions (5 fleets) | |
+|---|---|
+| Today: customers pick any handset | 6.1 (0.6–12.5) |
+| A: replace batteries that keep dying | **0.44 (0.34–0.88)** |
+| B: "take another" if back on the stand under 90 minutes | 3.9 (0.4–8.9) |
+| A+B | 0.29 (0.34–0.83) |
+
+| Finding | Implication |
+|---|---|
+| Without a colleague prompt, nothing at the moment of cancelling stops a walk-out. Idea 1 still helps genuine shoppers, and it makes cancel-and-walk **measurable**: about 3 in 10 unfinished cancels are walk-outs, a loss nobody can see today | Count unfinished cancels next to the weighted loss estimate |
+| A full check after **one** unfinished cancel mostly lands on honest shoppers who forgot to hand the basket back (85% of those checks; 15% of honest members) | Too blunt |
+| After **two in 90 days** it reaches 41 honest members (2%) and recovers \$154 per colleague hour, twice the targeted policy's rate | **v1.5 rule: two in 90 days** |
+| Walk-outs fall only if idea 2 deters them, which is unmeasured: 26% less if it puts off a quarter of attempts, 52% if half | Measure it in a trial; the base assumes no deterrence |
+| Gates that flag two people per receipt (idea 3, hardware) cut cancel-and-walk by a quarter whatever else is done | A store recommendation, not modelled further |
+| Worn batteries cause most dead handsets: replacing them cuts dead handsets by about 93%; the "take another" screen helps on its own but adds little on top | A first, B optional; resume (D) for the rest: customer hours lost fall from 10.7 to 1.1 |
+| Under two in 90 days only 1–3% of honest members in any group are checked this way, so group ratios move a lot with a handful of members | Monitor in a trial |
+
+The API now returns `finish_at_smartshop_point` (or `no_action` with nothing scanned) for a cancellation and `resume` for a device failure. At checkout it accepts `unfinished_cancels_90d` and `unfinished_since_last_checkout` from the SmartShop platform, and asks for a full check (probability 1, with the neutral reason) when the rule is met. These checks are not random, so they never become training labels; the 2% floor draw is independent of them and stays a random sample. Full analysis: [`notebooks/10_cancellations_and_dead_handsets.ipynb`](../notebooks/10_cancellations_and_dead_handsets.ipynb), produced by `python -m smartshop.reporting.exits` (about 3 minutes).
+
 ## Roadmap
 
 **v1: the core system**
@@ -494,5 +536,6 @@ A bigger sample finds more per check but takes longer, so at the same colleague 
 | v1.1 ✅ | Unseen-theft stress test (barcode switching); size-neutral scores close the age gap and cut loss further |
 | v1.3 ✅ | Sessions that never reach the till: help prompts on cancellation (cancel-and-walk), resume and handset rotation (dead handsets). Replaces a v1.2 cancellation model that misread how SmartShop ends |
 | v1.4 ✅ | Partial checks of 20–25% of the basket that escalate to a full check; today's baseline restated; targeted checks stay full; partial sample size chosen (25%, robust to how much checks deter) |
+| v1.5 ✅ | Cancellations and handsets redone with what the store has: finish cancels at the SmartShop point, a full check after two unfinished cancels in 90 days, replace worn batteries, resume dead devices. Replaces v1.3's colleague prompt and handset hand-out |
 
 **v2: after v1**: deliberate vs accidental misses, deterrence value of a rescan, queue-aware capacity, a conformal cap on honest shoppers stopped, data-driven product hotspots, a nudge experiment sized with CUPED, in-app "you might have forgotten…" prompts, scan-time camera verification.

@@ -112,7 +112,7 @@ class SimConfig:
     status_quo_partial_rate: float = 0.10
     status_quo_full_rate: float = 0.02
     # A partial check covers a share of the basket (store practice: about 20-25% of items, at
-    # least 2). If it finds anything unscanned, the till suggests a full check of the rest
+    # least 2). If it finds anything unscanned, the check device suggests a full check of the rest
     # (v1.4; earlier versions checked a fixed 3 items and stopped there).
     partial_share: float = 0.2
     partial_min_items: int = 2

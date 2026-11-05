@@ -1,37 +1,54 @@
 {
  "sessions": 47314,
- "walk_out_loss_today": 5810.2925000000005,
- "walk_out_share_of_all_loss_today": 0.1224522300963894,
+ "walk_out_loss_today": 5912.086,
+ "walk_out_share_of_all_loss_today": 0.12567572571680355,
+ "screen_minutes": 90.0,
  "handsets": [
   {
-   "policy": "random",
+   "policy": "Today: customers pick any handset",
    "sessions": 20433,
-   "failures": 131,
-   "failures per 1,000 sessions": 6.411197572554202,
-   "mean point of failure (share of shop)": 0.599357548140274,
-   "no handset free": 0,
-   "min": 0.8809279107326384,
-   "max": 12.57769294768267
-  },
-  {
-   "policy": "longest on rack first",
-   "sessions": 20433,
-   "failures": 86,
-   "failures per 1,000 sessions": 4.208877795722605,
-   "mean point of failure (share of shop)": 0.7480153084510797,
+   "failures": 125,
+   "failures per 1,000 sessions": 6.117554935643322,
+   "mean point of failure (share of shop)": 0.64298974538049,
    "no handset free": 0,
    "min": 0.5872852738217589,
-   "max": 8.270934272989772
+   "max": 12.528752508197524
   },
   {
-   "policy": "+ retire",
+   "policy": "A: replace batteries that keep dying",
    "sessions": 20433,
-   "failures": 10,
-   "failures per 1,000 sessions": 0.48940439485146575,
-   "mean point of failure (share of shop)": 0.8556730748637932,
+   "failures": 9,
+   "failures per 1,000 sessions": 0.4404639553663192,
+   "mean point of failure (share of shop)": 0.7051931513010553,
    "no handset free": 0,
-   "min": 0.14682131845543972,
+   "min": 0.34258307639602603,
    "max": 0.8809279107326384
+  },
+  {
+   "policy": "B: 'take another' if back on the stand only briefly",
+   "sessions": 20433,
+   "failures": 79,
+   "failures per 1,000 sessions": 3.8662947193265795,
+   "mean point of failure (share of shop)": 0.6952015990019075,
+   "no handset free": 0,
+   "min": 0.3915235158811726,
+   "max": 8.907159986296676
+  },
+  {
+   "policy": "A+B",
+   "sessions": 20433,
+   "failures": 6,
+   "failures per 1,000 sessions": 0.29364263691087944,
+   "mean point of failure (share of shop)": 0.8480676841921176,
+   "no handset free": 0,
+   "min": 0.34258307639602603,
+   "max": 0.8319874712474918
   }
+ ],
+ "policies": [
+  "Today: customers pick any handset",
+  "A: replace batteries that keep dying",
+  "B: 'take another' if back on the stand only briefly",
+  "A+B"
  ]
 }

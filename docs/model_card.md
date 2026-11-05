@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | **System** | A session risk model plus a randomised rescan policy and a Nectar-linked trust rule |
-| **Decides** | At the SmartShop exit: full check or not (the till can also ask for a partial check of about a fifth of the basket, which escalates to a full check if it finds anything; v1.4 tested targeting partial checks and found full checks better). It returns the probability used, the random draw, plain-English reasons and the shopper's usual high-risk items that are missing ("look here first") |
+| **Decides** | At the SmartShop exit: full check or not (the till can also ask for a partial check of 25% of the basket, done on the SmartShop check device, which suggests a full check if it finds anything; v1.4 tested targeting partial checks and found full checks better). It returns the probability used, the random draw, plain-English reasons and the shopper's usual high-risk items that are missing ("look here first") |
 | **Risk model** | Logistic regression on 25 observable features: the session's scan log (pauses, pace, deletions, what was scanned) and the member's history from earlier trips (usual basket, pace, deletions, earlier rescan outcomes). No demographics, channel, time of day or tenure |
 | **Labels** | What random full rescans found ("found anything"): the only unbiased label a store has. 1,934 at the latest cutoff (390 found something); 926 in the training period used for evaluation |
 | **Policy (v1.1)** | The risk score is first made partly **size-neutral**: compared with sessions of a similar number of units scanned (strength 0.5, chosen on the tuning period). Full-rescan probability then rises smoothly from a **2% random floor** to a **50% cap**. Volume is recalibrated every week so expected colleague time equals today's |
@@ -49,14 +49,15 @@ The served model leaves out the basket-gap feature, which would need the whole b
 
 **An unseen theft method.** Barcode switching (scanning a cheap item's barcode for an expensive one) leaves the count, pace and deletions normal, so the strongest scan-log signals vanish. With every thief switching and the model never retrained, the recommended policy still leaves 4.8% less loss than today (7.4% if retrained) and 33% of deliberate loss sits in the top 12% of scores (random: 12%), because member history still points at it.
 
-## Sessions that never reach the till (v1.3)
+## Sessions that never reach the till (v1.5)
 
-Some sessions end before the till barcode, where the rescan decision is made. A genuine shopper may cancel (an urgent call, an item they can't find) and leave the items; a shoplifter may scan everything, cancel, pay nothing and leave through the self-scan gates behind a paying customer (cancel-and-walk, the whole basket lost); and the store's handset or the shopper's phone may die. Timing does not tell genuine from theft. In simulation, cancel-and-walk is about an eighth of all loss and invisible to rescans and to the weighted loss estimate.
+Some sessions end before the till barcode, where the check decision is made. A genuine shopper may cancel (an urgent call, an item they can't find) and leave the items; a shoplifter may scan everything, cancel, pay nothing and leave through the self-scan gates behind a paying customer (cancel-and-walk, the whole basket lost); and the store's handset or the shopper's phone may die. Timing does not tell genuine from theft. In simulation, cancel-and-walk is about an eighth of all loss and invisible to checks and to the weighted loss estimate. Colleagues carry no device, and customers pick their own handset, so v1.5 uses only what the store has:
 
-- **Help prompt on cancellation.** A session cancelled with items scanned sends a colleague near the exit a prompt to help, with a priority (high or standard, from the size-adjusted risk score) and **no reasons shown**. Every cancellation, or only the higher-risk half when colleagues are stretched. It halves cancel-and-walk (every cancellation) or cuts it by about two-fifths (higher-risk only), and about one answered prompt in ten is a walk-out, so it must be framed and trained as help.
-- **Resume after a dead device.** The basket carries on on another handset or at a till from the Nectar card; the normal exit decision still applies; a device failure is never a risk signal.
-- **Handsets.** A handset is the store's equipment. Without a battery level, the handset log alone supports handing out the one longest on the rack and replacing batteries that keep failing: dead handsets fall from 6.4 to 0.5 per 1,000 sessions in simulation (72–93% across fleets).
-- **Fairness.** Among genuine cancellers, a "higher-risk" prompt goes to every group at similar rates (four-fifths ratios 0.85–1.00). Cancelling is never used as a risk feature.
+- **Finish a cancel at the SmartShop point.** With items scanned, the handset or app asks the shopper to leave the basket at the SmartShop checkout and shows a cancel barcode, which a colleague scans on the check device. Genuine shoppers are helped; a cancel never finished there (and not paid at a till) is an unfinished cancel, about 3 in 10 of them walk-outs.
+- **A full check after two unfinished cancels in 90 days**, on the member's next shop that reaches the till, with a neutral reason. It reaches about 2% of honest members; one strike would reach 15%. These checks are not random, so they are never training labels. Whether they deter walk-outs is unmeasured.
+- **Resume after a dead device.** The basket carries on on another handset or at a till from the Nectar card; the normal check decision still applies; a device failure is never a risk signal.
+- **Handsets.** From the handset log alone: replace batteries in handsets that die twice in 30 days (dead handsets 6.1 → 0.44 per 1,000 sessions in simulation), and a handset back on the stand under 90 minutes asks the customer to take another (adds little).
+- **Fairness.** Under the two-in-90-days rule only 1–3% of honest members in any group get such a check, too few to read group ratios reliably; monitor in a trial. Cancelling is never a risk-model feature.
 
 ## Fairness
 
@@ -107,7 +108,7 @@ This is a design assessment for a portfolio project, not legal advice. A real de
 - **Adaptive thieves.** Detection drives the result. If thieves adapt faster or harder than assumed, the random floor and cap are the levers (stress tests cover several such cases).
 - **New methods.** A method that leaves no trace in the scan log (tested: barcode switching) weakens the gain to a few per cent until retraining catches up; the random floor still measures it.
 - **How much a partial check deters is assumed.** It decides the best partial sample size (10% to 75%); 25% is chosen to be safe across the range, and a trial should measure it.
-- **Cancellation, walk-out and handset rates are assumed.** No published figures exist; the conclusions hold across the nine sets of assumptions tested, but the shadow-mode pilot should measure them, and a handset log (which handset, when it left and returned to the rack) is assumed to exist.
+- **Cancellation, walk-out and handset rates are assumed.** No published figures exist; the conclusions hold across the ten sets of assumptions tested, but a pilot should measure them, including how many genuine shoppers finish a cancel at the SmartShop point and whether a full check after unfinished cancels deters walk-outs. A handset log (which handset, when it left and returned to the stand) and a software change to the handsets, app and check device are assumed.
 
 ## Monitoring and maintenance
 

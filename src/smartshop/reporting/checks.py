@@ -2,8 +2,8 @@
 
 How checks work in store: when a SmartShop shopper scans the till barcode to pay, the till may
 ask for a check. A **partial check** covers about 20-25% of the basket; if it finds anything
-unscanned, the till suggests a **full check** of everything. The till can also ask for a full
-check directly. Until v1.4 the project modelled a partial check as a fixed 3 items that stopped
+unscanned, the check device suggests a **full check** of everything. The till can also ask for a
+full check directly. Until v1.4 the project modelled a partial check as a fixed 3 items that stopped
 there, which made today's checks look weaker than they are.
 
 This compares, at today's colleague time, on the test period, as the policy would run (shoppers

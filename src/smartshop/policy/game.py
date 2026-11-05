@@ -90,7 +90,7 @@ def _partial_values(t, u, cfg) -> dict:
     pick = k / n
     h = np.where(u.gt_nonscan, pick * detect_partial, 0.0)  # chance this unit is found
     by = u.basket_id.to_numpy()
-    # chance a partial check finds anything (then the till suggests a full check)
+    # chance a partial check finds anything (then the check device suggests a full check)
     hit = 1 - np.exp(pd.Series(np.log1p(-np.minimum(h, 1 - 1e-12))).groupby(by).sum())
     part_units = pd.Series(np.asarray(k)).groupby(by).first()
     no_escalation = u.assign(f=u.loss_price * h).groupby("basket_id").f.sum()

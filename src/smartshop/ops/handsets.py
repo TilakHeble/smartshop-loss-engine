@@ -1,16 +1,21 @@
-"""Dead SmartShop handsets: a store's problem, not the customer's (v1.3).
+"""Dead SmartShop handsets: a store's problem, not the customer's (v1.5).
 
 A SmartShop handset is the store's equipment. If it dies part-way through a shop, today the
 customer has to scan everything again on another handset, at self-scan or at a checkout: their
 time and a colleague's, for the store's failure.
 
-The handsets do not show a battery level, so a store cannot pick handsets by charge. What it
-does have (assumed here, as for any loan device) is a log of which handset each session used,
-when it left the rack and when it came back. From that log alone a store can:
+Customers pick a handset from the stand themselves (or use their phone), and the handsets show
+no battery level. What the store does have (assumed here, as for any loan device) is a log of
+which handset each session used, when it left the stand and when it came back. Two ideas need no
+colleague and no change to how customers pick:
 
-- hand out the handset that has been charging longest ("longest on the rack first"), instead of
-  whichever one the customer grabs, and
-- spot handsets that keep dying early and send them for a new battery.
+- **A: replace batteries that keep dying.** A handset that dies twice in 30 days is sent for a
+  new battery.
+- **B: "please take another handset".** A handset that has been back on the stand for less than
+  a set time shows that message on its start screen (it knows when it was docked), so customers
+  tend to pick one that has charged longer. Some customers take it anyway.
+
+When a handset still dies, the session resumes on another device (policy/exits.py, idea D).
 
 This module simulates a handset fleet in one busy store, using the real start times and shop
 lengths of the test period's handset sessions (all simulated stores stacked onto one store's
@@ -29,7 +34,11 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-RANDOM, LONGEST_FIRST, LONGEST_FIRST_RETIRE = "random", "longest on rack first", "+ retire"
+RANDOM = "Today: customers pick any handset"
+RETIRE = "A: replace batteries that keep dying"
+SCREEN = "B: 'take another' if back on the stand only briefly"
+SCREEN_RETIRE = "A+B"
+POLICIES = (RANDOM, RETIRE, SCREEN, SCREEN_RETIRE)
 
 
 @dataclass(frozen=True)
@@ -43,6 +52,8 @@ class FleetConfig:
     idle_minutes: float = 5.0  # handset on but not yet scanning, per session
     retire_failures: int = 2  # failures within the window that send a handset for a battery
     retire_window_days: int = 30
+    screen_minutes: float = 60.0  # B: on the stand for less than this -> "take another"
+    screen_heeded: float = 0.8  # B: customers who take another handset when asked
     seed: int = 7
 
 
@@ -73,7 +84,7 @@ def simulate(timeline: pd.DataFrame, policy: str, cfg: FleetConfig | None = None
         if day != current_day:  # overnight: everything back on the rack and fully charged
             current_day = day
             age_days += 1
-            if policy == LONGEST_FIRST_RETIRE:
+            if policy in (RETIRE, SCREEN_RETIRE):
                 for i in range(h):
                     recent = [d for d in fail_log[i] if d > day - cfg.retire_window_days]
                     if len(recent) >= cfg.retire_failures:  # send it for a new battery
@@ -92,10 +103,12 @@ def simulate(timeline: pd.DataFrame, policy: str, cfg: FleetConfig | None = None
         level = np.minimum(
             cap_now[free], charge[free] + cap_now[free] * rack / cfg.full_charge_minutes
         )
-        if policy == RANDOM:
-            pick = rng.integers(len(free))
+        ok = np.flatnonzero(rack >= cfg.screen_minutes)
+        u = rng.random()
+        if policy in (SCREEN, SCREEN_RETIRE) and len(ok) and rng.random() < cfg.screen_heeded:
+            pick = int(ok[int(u * len(ok))])  # any handset not asking to be left on charge
         else:
-            pick = int(np.argmax(rack))  # the only thing the log shows: time on the rack
+            pick = int(u * len(free))  # customers pick any handset
         i = free[pick]
         need = dur + cfg.idle_minutes
         sessions_served += 1
@@ -122,6 +135,4 @@ def simulate(timeline: pd.DataFrame, policy: str, cfg: FleetConfig | None = None
 
 
 def compare(timeline: pd.DataFrame, cfg: FleetConfig | None = None) -> pd.DataFrame:
-    return pd.DataFrame(
-        [simulate(timeline, p, cfg) for p in (RANDOM, LONGEST_FIRST, LONGEST_FIRST_RETIRE)]
-    )
+    return pd.DataFrame([simulate(timeline, p, cfg) for p in POLICIES])

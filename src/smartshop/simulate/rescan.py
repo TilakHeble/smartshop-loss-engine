@@ -4,7 +4,8 @@ every policy evaluated later, so all policies face the same detection model.
     full     every unit is rescanned: finds non-scans (and over-scans, which are refunded)
     partial  the colleague rescans a share of the units (about 20-25% of the basket, at least
              2) picked from the bags: finds a non-scan only if it is among them, and cannot see
-             over-scans [ECR18]. If it finds anything, the till suggests a full check of the rest
+             over-scans [ECR18]. If it finds anything, the check device suggests a full check of
+             the rest
              ("escalated"); an escalated check is not a random full rescan, so it is never used
              as a training label
 """

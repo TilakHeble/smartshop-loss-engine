@@ -264,33 +264,43 @@ def test_v11_bundle_uses_size_adjusted_scores_and_keeps_the_budget(sim_con, tmp_
     assert 0.02 <= out["rescan_probability"] <= 0.5
 
 
-def test_cancellations_get_a_help_prompt_and_dead_devices_resume(bundle):
+def test_cancellations_finish_at_the_point_and_dead_devices_resume(bundle):
     ev = _events()
     cancel = bundle.decide(3, 15.0, ev, draw=0.0, ended_by="cancelled")
-    assert cancel["decision"] == "help_prompt" and cancel["rescan_probability"] == 0
-    assert cancel["help_priority"] in ("high", "standard")
-    assert cancel["reasons"] == []  # help, not an accusation: no reasons shown
+    assert cancel["decision"] == "finish_at_smartshop_point"
+    assert cancel["rescan_probability"] == 0 and cancel["reasons"] == []  # never a check
     no_events = pd.DataFrame(columns=["t", "action", "product_id", "unit_price"])  # as the API
     empty = bundle.decide(3, 1.0, no_events, draw=0.0, ended_by="cancelled")
-    assert empty["decision"] == "no_prompt"  # nothing scanned, nothing to help with
+    assert empty["decision"] == "no_action"  # nothing scanned, nothing to hand back
     dead = bundle.decide(3, 15.0, ev, draw=0.0, ended_by="device_failure")
-    assert dead["decision"] == "resume" and dead["help_priority"] is None
+    assert dead["decision"] == "resume"
     assert dead["rescan_probability"] == 0 and not dead["audit_sample"]
     finish = bundle.decide(3, 15.0, ev, draw=0.0)
     assert finish["decision"] == "full_rescan"  # the checkout decision is unchanged
 
 
-def test_higher_risk_only_prompts_follow_the_bundle_setting(bundle):
-    import copy
-
-    b = copy.copy(bundle)
-    b.manifest = copy.deepcopy(bundle.manifest)
-    b.manifest["exits"] = {"prompt": "higher_risk", "risk_cut": 1.1}  # nobody is high risk
-    out = b.decide(3, 15.0, _events(), draw=0.0, ended_by="cancelled")
-    assert out["decision"] == "no_prompt"
-    b.manifest["exits"]["risk_cut"] = -0.1  # everybody is
-    out = b.decide(3, 15.0, _events(), draw=0.0, ended_by="cancelled")
-    assert out["decision"] == "help_prompt" and out["help_priority"] == "high"
+def test_unfinished_cancels_bring_a_full_check(bundle):
+    ev = _events()
+    base = bundle.decide(3, 15.0, ev, draw=0.99)
+    assert base["decision"] == "no_rescan"
+    # one unfinished cancel is not enough (genuine shoppers forget); two in 90 days is
+    one = bundle.decide(
+        3, 15.0, ev, draw=0.99, unfinished_cancels_90d=1, unfinished_since_last_checkout=True
+    )
+    assert one["decision"] == "no_rescan"
+    two = bundle.decide(
+        3, 15.0, ev, draw=0.99, unfinished_cancels_90d=2, unfinished_since_last_checkout=True
+    )
+    assert two["decision"] == "full_rescan" and two["rescan_probability"] == 1.0
+    assert two["reasons"] == [
+        "recent SmartShop shops were cancelled and not finished at the SmartShop point"
+    ]
+    assert not two["audit_sample"]  # not a random check, so not a training label
+    # already checked since then: no new unfinished cancel, no forced check
+    old = bundle.decide(
+        3, 15.0, ev, draw=0.99, unfinished_cancels_90d=2, unfinished_since_last_checkout=False
+    )
+    assert old["decision"] == "no_rescan"
 
 
 def test_api_accepts_cancellations_and_device_failures(tmp_path, monkeypatch):
@@ -311,7 +321,14 @@ def test_api_accepts_cancellations_and_device_failures(tmp_path, monkeypatch):
     }
     with TestClient(appmod.app) as client:
         r = client.post("/decide", json=body).json()
-        assert r["decision"] == "help_prompt" and r["ended_by"] == "cancelled"
+        assert r["decision"] == "finish_at_smartshop_point" and r["ended_by"] == "cancelled"
         r = client.post("/decide", json=body | {"ended_by": "device_failure"}).json()
         assert r["decision"] == "resume"
         assert client.post("/decide", json=body | {"ended_by": "walked_out"}).status_code == 422
+        flagged = body | {
+            "ended_by": "checkout",
+            "unfinished_cancels_90d": 2,
+            "unfinished_since_last_checkout": True,
+            "draw": 0.99,
+        }
+        assert client.post("/decide", json=flagged).json()["decision"] == "full_rescan"

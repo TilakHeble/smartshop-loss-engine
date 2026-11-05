@@ -30,8 +30,8 @@
 | Unseen method (barcode switching, every thief, no retraining) | still 4.8% less loss than today |
 | Measuring loss | averaging targeted rescans overstates loss ~4x; weighting by 1/probability is unbiased (~1%) |
 | Fairness | every group stopped at about half today's rate or less; age ratio 0.60 → 0.70 with size-adjusted scores |
-| Cancel-and-walk | about 1/8 of all loss, invisible to rescans; a help prompt on every cancellation halves it |
-| Dead handsets | 6.4 → 0.5 per 1,000 sessions by handing out the longest-charged one |
+| Cancel-and-walk | about 1/8 of all loss, invisible to checks; finishing cancels at the SmartShop point makes it countable (3 in 10 unfinished cancels); a full check after two in 90 days |
+| Dead handsets | 6.1 → 0.44 per 1,000 sessions by replacing batteries that keep dying |
 | Store trial | roughly 40–100 stores per arm |
 
 ## Hard questions
@@ -49,16 +49,13 @@ Two reasons. A fixed threshold can be learned and gamed; a random draw with a fl
 Only from the random full rescans: today's 2% random full rescans, and the policy's 2% floor. Targeted rescans are a biased sample. For total loss I weight each rescan by one over the probability it had. That's inverse-probability weighting, and it's why the API logs the probability with every decision.
 
 **"What about people who cancel SmartShop and just walk out?"**
-That's the gap rescans can't see. A shoplifter scans everything so it looks normal, cancels, pays nothing and slips through the gates behind someone who's paid. In the simulation it's about an eighth of all loss. Genuine shoppers cancel too, an urgent call or an item they can't find, and both can happen early or late, so the data can't tell them apart at that moment. So the response has to be right for both: every cancellation with items sends a colleague near the exit a prompt to *help*. Genuine shoppers get help, and a would-be walk-out meets a colleague. It halves that loss, and only about one prompt in ten is a thief, which is exactly why it's help, never an accusation.
+That's the gap checks can't see. A shoplifter scans everything so it looks normal, cancels, pays nothing and slips through the gates behind someone who's paid. In the simulation it's about an eighth of all loss. Genuine shoppers cancel too, and timing doesn't separate them. My first idea was a prompt to a colleague, but colleagues don't carry a device, so I redesigned it around what stores have. Cancelling with items asks the shopper to leave the basket at the SmartShop checkout, where a colleague scans a cancel barcode on the check device they already use. Genuine shoppers get helped, and a cancel that's never finished becomes countable: about 3 in 10 are walk-outs. Two unfinished cancels in 90 days bring a full check on the next shop. One strike would mostly hit honest shoppers who forgot, so I chose two. I'm honest that it only cuts walk-outs if it deters, which a trial has to measure; gates that allow one person per receipt are the direct fix.
 
 **"And when a SmartShop handset dies?"**
-That's the store's equipment failing, not the customer's problem, but today they have to rescan everything. The handsets don't show a battery level, but the store knows which handset each session used and when it went back on the rack. Handing out the one that's been charging longest, and replacing batteries that keep dying, cut dead handsets from about 6 to 0.5 per thousand sessions in my simulation. And when one still dies, the session resumes on another handset from the Nectar card.
-
-**"Why logistic regression, not XGBoost?"**
-There were fewer than 1,000 labels in the training period. I compared candidates by repeated cross-validation and the leaders were close, so I chose the one that gives plain-English reasons a colleague can use, like "long pause between scans".
+That's the store's equipment failing, not the customer's problem, but today they have to rescan everything. Customers pick their own handset and it shows no battery level, but the store knows which handset each session used. Most deaths come from worn batteries, so sending a handset that dies twice in a month for a new battery cut dead handsets from about 6 to 0.4 per thousand sessions. And when one still dies, the session resumes on another handset from the Nectar card.
 
 **"Don't stores do partial checks? Why does your system only ask for full ones?"**
-They do, and I model them as they work: a colleague checks about a fifth of the basket, and if anything is unscanned the till suggests a full check. That made today's checks stronger than my first version assumed, so I restated the headline against it, and it fell on recovery (7.1x to 5.5x) but held on loss. Then I tested giving medium-risk shoppers a partial check and only the highest-risk a full one. Full checks won at every mix, even short-staffed, because items taken on purpose are usually hidden and a sample rarely reaches them. And only random full checks give unbiased labels.
+They do, and I model them as they work: a colleague checks about a fifth of the basket, and if anything is unscanned the check device suggests a full check. That made today's checks stronger than my first version assumed, so I restated the headline against it, and it fell on recovery (7.1x to 5.5x) but held on loss. Then I tested giving medium-risk shoppers a partial check and only the highest-risk a full one. Full checks won at every mix, even short-staffed, because items taken on purpose are usually hidden and a sample rarely reaches them. And only random full checks give unbiased labels.
 
 **"So what percentage of the basket should a partial check cover?"**
 It depends on something nobody has measured: how much a quick check scares a thief. If they fear any check, small samples win, because you can check more people; if they know a sample rarely reaches hidden items, big samples win. So I tested 74 rules under three assumptions and chose the one with the smallest worst case: 25% of every basket, within 1.4% of the best whatever the truth. Different shares by basket size gained nothing worth explaining to colleagues. A trial with a 10% and a 25% arm would settle it.

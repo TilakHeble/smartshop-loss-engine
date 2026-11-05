@@ -280,7 +280,7 @@ def build() -> dict:
 
 
 def exits_block() -> dict | None:
-    """v1.3 results (models/exits*.csv, handsets.csv from smartshop.reporting.exits)."""
+    """v1.5 results (models/exits*.csv, handsets.csv from smartshop.reporting.exits)."""
     m = ROOT / "models"
     files = ["exits.csv", "handsets.csv", "exits_fairness.csv", "exits_summary.json"]
     if not all((m / f).exists() for f in files):

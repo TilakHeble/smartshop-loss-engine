@@ -42,6 +42,9 @@ from smartshop.simulate.rescan import partial_count
 log = logging.getLogger(__name__)
 DEFAULT_DIR = ROOT / "artifacts"
 PARTIAL_ESCALATION = 0.0288  # share of partial checks that find something [ECR18]
+# v1.5 idea 2: two unfinished cancels in 90 days (one since the last checkout) -> full check
+UNFINISHED_RULE = {"need": 2, "window_days": 90}
+UNFINISHED_REASON = "recent SmartShop shops were cancelled and not finished at the SmartShop point"
 RECENT_DAYS = 28  # the latest cycle: calibrates rescan volume and is the drift "current" sample
 
 REASONS = {
@@ -137,16 +140,23 @@ class Bundle:
         day: int | None = None,
         draw: float | None = None,
         ended_by: str = "checkout",
+        unfinished_cancels_90d: int = 0,
+        unfinished_since_last_checkout: bool = False,
     ) -> dict:
         """One decision for a session that has ended.
 
-        checkout        the shopper scanned the till barcode: rescan or not (week 9, v1.1).
-        cancelled       the shopper cancelled SmartShop before the till (v1.3): no rescan; if
-                        items were scanned, a colleague near the self-scan exit gets a prompt to
-                        help (every cancellation, or only higher-risk ones, per the bundle's
-                        setting). Help, not an accusation: no reasons are shown.
-        device_failure  the handset or phone died (v1.3): resume the session on another device
-                        or at a till from the Nectar card; never a risk signal.
+        checkout        the shopper scanned the till barcode: check or not (week 9, v1.1). If the
+                        member has unfinished cancels (v1.5 idea 2: at least the bundle's number
+                        in 90 days, one since their last checkout), a full check is asked for.
+        cancelled       the shopper cancelled SmartShop before the till (v1.5 idea 1): never a
+                        check. With items scanned, the handset or app asks them to leave the
+                        basket at the SmartShop checkout and shows a cancel barcode for the
+                        colleague to scan on the check device.
+        device_failure  the handset or phone died (v1.5 idea D): resume the session on another
+                        device or at a till from the Nectar card; never a risk signal.
+
+        The SmartShop platform supplies the unfinished-cancel counts: a cancel with items whose
+        barcode was never scanned at the SmartShop point, and that was not paid at a till.
         """
         ev = events.copy()
         known = ev.product_id.isin(self.products.index)
@@ -171,15 +181,10 @@ class Bundle:
         }
         if ended_by != "checkout":
             if ended_by == "device_failure":
-                decision, priority = "resume", None
+                decision = "resume"
             else:
-                exits = self.manifest.get("exits", {})
-                high = "risk_cut" in exits and adjusted >= exits["risk_cut"]
-                priority = "high" if high else "standard"
-                wanted = exits.get("prompt", "all") == "all" or high
-                decision = "help_prompt" if sess["scanned_units"] > 0 and wanted else "no_prompt"
-                if decision == "no_prompt":
-                    priority = None
+                items = sess["scanned_units"] > 0
+                decision = "finish_at_smartshop_point" if items else "no_action"
             return {
                 "decision": decision,
                 "rescan_probability": 0.0,
@@ -187,23 +192,27 @@ class Bundle:
                 "audit_sample": False,
                 "reasons": [],
                 "look_here_first": [],
-                "help_priority": priority,
                 **common,
             }
-        p = self.probability(adjusted, trust)
+        rule = self.manifest.get("exits", {}).get("unfinished_cancels", UNFINISHED_RULE)
+        flagged = unfinished_since_last_checkout and unfinished_cancels_90d >= rule["need"]
+        p = 1.0 if flagged else self.probability(adjusted, trust)
         rescan = u < p
         look = []
         if prof and isinstance(prof.get("usual_high_risk"), str) and prof["usual_high_risk"]:
             scanned = set(ev.product_id.map(self.products.commodity).dropna())
             look = [c for c in prof["usual_high_risk"].split("|") if c not in scanned]
+        reasons = self.reasons(X) if rescan else []
+        if flagged:
+            reasons = [UNFINISHED_REASON]  # the neutral reason the colleague sees
         return {
             "decision": "full_rescan" if rescan else "no_rescan",
             "rescan_probability": round(p, 4),
             "draw": round(u, 6),
+            # the 2% floor draw is independent of the flag, so it stays a random sample
             "audit_sample": bool(u < floor),
-            "reasons": self.reasons(X) if rescan else [],
+            "reasons": reasons,
             "look_here_first": look[:3] if rescan else [],
-            "help_priority": None,
             **common,
         }
 
@@ -353,8 +362,8 @@ def build_bundle(
     )
 
     recent = recent.assign(risk_score=raw, size_adjusted_score=score, p=p, cost_s=cost)
-    # v1.3 help prompts on cancellation: "higher-risk" = top half of sessions by adjusted score
-    exits = {"prompt": "all", "risk_share": 0.5, "risk_cut": float(np.quantile(score, 0.5))}
+    # v1.5 idea 2: a full check after unfinished cancels (models/exits.csv chose the rule)
+    exits = {"unfinished_cancels": dict(UNFINISHED_RULE)}
 
     # Drift reference: the latest cycle, i.e. what this bundle was calibrated on. Not the whole
     # training history: member-history features mature over time, so early sessions (little or

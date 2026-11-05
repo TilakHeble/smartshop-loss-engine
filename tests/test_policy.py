@@ -202,72 +202,98 @@ def test_size_neutral_scores_remove_the_basket_size_effect():
     assert np.allclose(again(score[:100], units[:100]), n(score[:100], units[:100]))
 
 
-def _exit_sessions(n=40_000, seed=0):
+def _exit_sessions(n=40_000, seed=0, members=2000):
+    """Sessions sorted by member then time, with what a full check would find."""
     rng = np.random.default_rng(seed)
-    typ = rng.choice(
+    kinds = rng.choice(
         ["honest", "careless", "opportunist", "deliberate", "adaptive"],
-        n,
+        members,
         p=[0.72, 0.14, 0.08, 0.04, 0.02],
     )
+    member = np.sort(rng.integers(0, members, n))
+    typ = kinds[member]
     thief = np.isin(typ, ["opportunist", "deliberate", "adaptive"])
-    return pd.DataFrame(
+    nonscan = np.where(rng.random(n) < 0.2, rng.gamma(2, 3, n), 0.0)
+    d = pd.DataFrame(
         {
             "basket_id": np.arange(n),
+            "member_id": member,
+            "t": rng.uniform(501, 711, n),
             "gt_type": typ,
             "value": rng.gamma(2, 20, n),
             "units": rng.integers(1, 60, n),
             "hour_of_day": rng.integers(7, 23, n),
             "channel": np.where(rng.random(n) < 0.45, "handset", "app"),
-            # thieves score higher on average, as the risk model does
-            "score": 1 / (1 + np.exp(-(rng.normal(size=n) + 1.0 * thief))),
+            "nonscan_value": nonscan,
+            "overscan_value": 0.0,
+            "deliberate_value": np.where(thief, nonscan, 0.0),
         }
     )
+    return d.sort_values(["member_id", "t"]).reset_index(drop=True)
 
 
-def test_help_prompts_cut_walk_outs_and_resume_saves_time():
-    from smartshop.policy.exits import HELP_ALL, HELP_RISK, TODAY, ExitConfig, run_arms
+def test_unfinished_cancels_and_resume():
+    from smartshop.policy.exits import FINISH, FLAG_ONE, FLAG_TWO, TODAY, ExitConfig, run_arms
 
     r = run_arms(_exit_sessions(), ExitConfig(), seeds=range(5))
-    # same draws in every arm: the same walk-out attempts
+    # same draws in every arm: the same walk-out attempts and losses (no deterrence assumed)
     assert r["walk-out attempts"].nunique() == 1
-    assert r.loc[TODAY, "prompts"] == 0
-    assert r.loc[HELP_ALL, "walk-out loss"] < r.loc[HELP_RISK, "walk-out loss"]
-    assert r.loc[HELP_RISK, "walk-out loss"] < r.loc[TODAY, "walk-out loss"]
-    # prompting only higher-risk cancellations costs less colleague time
+    assert r["walk-out loss"].nunique() == 1
+    # idea 1: genuine cancellers finish at the point; every walk-out is an unfinished cancel
+    assert r.loc[TODAY, "genuine cancels finished at the SmartShop point"] == 0
+    assert r.loc[FINISH, "genuine cancels finished at the SmartShop point"] > 0
+    assert r.loc[FINISH, "unfinished cancels that were walk-outs"] > 0
+    # idea 2: the two-strike rule checks far fewer honest shoppers than one strike
+    assert r.loc[FINISH, "full checks from unfinished cancels"] == 0
     assert (
-        r.loc[HELP_RISK, "colleague hours on prompts"]
-        < r.loc[HELP_ALL, "colleague hours on prompts"]
+        0
+        < r.loc[FLAG_TWO, "of which honest shoppers"]
+        < r.loc[FLAG_ONE, "of which honest shoppers"]
     )
-    # and the risk score makes those prompts more often the right ones
-    prec = r["prompts that were walk-outs"] / r["prompts answered"]
-    assert prec[HELP_RISK] > prec[HELP_ALL]
     # dead handsets: fewer, and nobody rescans everything
-    assert r.loc[HELP_ALL, "dead handsets"] < r.loc[TODAY, "dead handsets"]
+    assert r.loc[FINISH, "dead handsets"] < r.loc[TODAY, "dead handsets"]
     assert (
-        r.loc[HELP_ALL, "customer hours lost to dead devices"]
+        r.loc[FINISH, "customer hours lost to dead devices"]
         < r.loc[TODAY, "customer hours lost to dead devices"]
     )
+    # if idea 2 deters, walk-outs fall only in the arms that use it
+    d = run_arms(_exit_sessions(), ExitConfig(flag_deters=0.5), seeds=range(5))
+    assert d.loc[FLAG_ONE, "walk-out loss"] < d.loc[FINISH, "walk-out loss"]
+
+
+def test_flags_need_a_new_unfinished_cancel_since_the_last_checkout():
+    from smartshop.policy.exits import _flags
+
+    member = np.array([1, 1, 1, 1, 1, 2, 2, 2])
+    t = np.array([1, 2, 3, 200, 201, 1, 2, 3.0])
+    unfinished = np.array([0, 1, 0, 0, 0, 1, 0, 0], bool)
+    checkout = np.array([1, 0, 1, 1, 1, 0, 1, 1], bool)
+    one = _flags(member, t, unfinished, checkout, 90, 1)
+    assert list(np.flatnonzero(one)) == [2, 6]  # only the next checkout after each
+    assert not _flags(member, t, unfinished, checkout, 90, 2).any()
 
 
 def test_nothing_happens_when_nobody_cancels_or_walks():
-    from smartshop.policy.exits import HELP_ALL, ExitConfig, simulate_exits
+    from smartshop.policy.exits import FLAG_ONE, ExitConfig, simulate_exits
 
     off = ExitConfig(
         walk_rate={},
         genuine_cancel_rate=0.0,
         phone_failure_rate=0.0,
         handset_failure_today=0.0,
-        handset_failure_v13=0.0,
+        handset_failure_v15=0.0,
     )
-    o = simulate_exits(_exit_sessions(5000), HELP_ALL, off, seed=1)
-    assert o["walk-out loss"] == 0 and o["prompts"] == 0 and o["dead devices"] == 0
+    o = simulate_exits(_exit_sessions(5000), FLAG_ONE, off, seed=1)
+    assert o["walk-out loss"] == 0 and o["full checks from unfinished cancels"] == 0
+    assert o["dead devices"] == 0
 
 
-def test_handing_out_the_longest_charged_handset_means_fewer_dead_ones():
+def test_replacing_worn_batteries_means_fewer_dead_handsets():
     from smartshop.ops.handsets import (
-        LONGEST_FIRST,
-        LONGEST_FIRST_RETIRE,
         RANDOM,
+        RETIRE,
+        SCREEN,
+        SCREEN_RETIRE,
         compare,
         store_timeline,
     )
@@ -282,8 +308,9 @@ def test_handing_out_the_longest_charged_handset_means_fewer_dead_ones():
         }
     )
     r = compare(store_timeline(sessions)).set_index("policy")["failures per 1,000 sessions"]
-    assert r[LONGEST_FIRST_RETIRE] <= r[LONGEST_FIRST] <= r[RANDOM]
     assert r[RANDOM] > 0
+    assert r[RETIRE] < r[RANDOM] and r[SCREEN] <= r[RANDOM]
+    assert r[SCREEN_RETIRE] < r[RANDOM]  # B on top of A is within noise at this size
 
 
 def test_partial_check_size_and_mix_policy():
