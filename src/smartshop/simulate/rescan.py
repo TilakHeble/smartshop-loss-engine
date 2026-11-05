@@ -20,7 +20,12 @@ NONE, PARTIAL, FULL = "none", "partial", "full"
 def partial_count(n, cfg):
     """Units a partial check covers in a basket of n: a share, at least a minimum, at most n."""
     n = np.asarray(n)
-    return np.minimum(n, np.maximum(cfg.partial_min_items, np.ceil(cfg.partial_share * n)))
+    share = cfg.partial_share
+    bands = getattr(cfg, "partial_bands", None)
+    if bands:
+        limits = [b[0] for b in bands[:-1]]
+        share = np.asarray([b[1] for b in bands])[np.searchsorted(limits, n, side="left")]
+    return np.minimum(n, np.maximum(cfg.partial_min_items, np.ceil(share * n)))
 
 
 def rescan_outcomes(basket_ids: np.ndarray, decisions: np.ndarray, units: pd.DataFrame, cfg):

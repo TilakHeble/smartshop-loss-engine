@@ -43,7 +43,7 @@
 | Recovered per colleague hour | \$13 | \$55 | **\$70** |
 | Honest shoppers stopped | 5,428 | 1,944 (−64%) | **2,270** (−58%) |
 
-Since v1.4, today's partial checks are modelled as they work in store: about 20–25% of the basket, escalating to a full check if anything is found (calibrated so 3.0% find something; published: 2.88%). That makes today a stronger baseline than in earlier versions (which had −20% loss, 7.1x, −65% honest stops), and it takes 18% more colleague time, which the policy is also given. Labels and the loss estimate use full checks only; an escalated partial check is excluded, because that basket was chosen by what the sample found.
+Since v1.4, today's partial checks are modelled as they work in store: about 20–25% of the basket, escalating to a full check if anything is found (calibrated so 3.0% find something; published: 2.88%). That makes today a stronger baseline than in earlier versions (which had −20% loss, 7.1x, −65% honest stops), and it takes 18% more colleague time, which the policy is also given. Labels and the loss estimate use full checks only; an escalated partial check is excluded, because that basket was chosen by what the sample found. For random partial checks the recommended sample is 25% of the basket (at least 2 items), chosen to be safe under three assumptions about how much a partial check deters, since that has not been measured.
 
 The served model leaves out the basket-gap feature, which would need the whole basket model at the till; the stress tests use the same configuration. In fourteen stress tests, each changing one simulator assumption and retraining everything, the recommended policy leaves 5–24% less loss than today, recovers 2.1–5.8x as much and stops 56–60% fewer honest shoppers, and beats v1.0 on loss in every one (v1.4 figures).
 
@@ -106,6 +106,7 @@ This is a design assessment for a portfolio project, not legal advice. A real de
 - **Static store capacity.** Colleague time is held constant per period; queue-aware capacity by hour is v2.
 - **Adaptive thieves.** Detection drives the result. If thieves adapt faster or harder than assumed, the random floor and cap are the levers (stress tests cover several such cases).
 - **New methods.** A method that leaves no trace in the scan log (tested: barcode switching) weakens the gain to a few per cent until retraining catches up; the random floor still measures it.
+- **How much a partial check deters is assumed.** It decides the best partial sample size (10% to 75%); 25% is chosen to be safe across the range, and a trial should measure it.
 - **Cancellation, walk-out and handset rates are assumed.** No published figures exist; the conclusions hold across the nine sets of assumptions tested, but the shadow-mode pilot should measure them, and a handset log (which handset, when it left and returned to the rack) is assumed to exist.
 
 ## Monitoring and maintenance

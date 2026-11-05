@@ -1,0 +1,32 @@
+{
+  "rule": "by size 30%/30%/20%",
+  "bands": [
+    [
+      10,
+      0.3
+    ],
+    [
+      30,
+      0.3
+    ],
+    [
+      1000000000,
+      0.2
+    ]
+  ],
+  "share": null,
+  "min_items": 2,
+  "tuning: worst-case loss vs the best rule": 0.013119047885362667,
+  "test: loss vs 20% rule, by assumption": {
+    "thieves fear any check alike": 0.002158252501238467,
+    "a partial check deters half as much": 0.0005100046355326349,
+    "deterrence in proportion to items checked": -0.002706143931565541
+  },
+  "best single share (tuning)": "25% of every basket",
+  "best single share, worst case vs best rule": 0.013624913360122282,
+  "targeted checks with this rule, loss vs all full": {
+    "top 0% full": 0.11941929253573247,
+    "top 5% full": 0.00887128693959327,
+    "all full": 0.0
+  }
+}

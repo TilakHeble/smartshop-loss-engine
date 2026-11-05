@@ -303,3 +303,16 @@ def test_partial_check_size_and_mix_policy():
     assert (part[score >= 0.8] == 0).all() and (part[score < 0.8] >= 0).all()
     f1, p1 = split_policy(smooth_policy(0.5, 0.02, 0.5, 0.05), score)
     assert (p1 == 0).all()  # a plain policy asks only for full checks
+
+
+def test_partial_check_size_bands_and_deterrence():
+    """Sample size by basket size, and how much a partial check deters, are configurable."""
+    from dataclasses import replace
+
+    from smartshop.simulate.config import SimConfig
+    from smartshop.simulate.rescan import partial_count
+
+    cfg = replace(SimConfig(), partial_bands=((10, 0.3), (30, 0.3), (10**9, 0.2)))
+    # up to 10 items: 30% (at least 2); 11-30: 30%; over 30: 20%
+    assert list(partial_count(np.array([5, 10, 11, 30, 31, 100]), cfg)) == [2, 3, 4, 9, 7, 20]
+    assert SimConfig().partial_deterrence == 1.0  # base: thieves fear any check alike

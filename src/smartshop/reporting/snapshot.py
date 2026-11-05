@@ -301,7 +301,21 @@ def checks_block() -> dict | None:
     return {
         "table": pd.read_csv(m / "checks.csv").to_dict("records"),
         "tuning": pd.read_csv(m / "checks_tuning.csv").to_dict("records"),
+        "sample_size": (
+            pd.read_csv(m / "sample_size_tuning.csv")
+            .query("rule.str.endswith('every basket')", engine="python")
+            .to_dict("records")
+            if (m / "sample_size_tuning.csv").exists()
+            else None
+        ),
     }
+
+
+def add_checks() -> None:
+    """Attach the v1.4 results to an existing snapshot without rebuilding the rest."""
+    snap = json.loads(SNAPSHOT_PATH.read_text())
+    snap["checks"] = checks_block()
+    SNAPSHOT_PATH.write_text(json.dumps(_clean(snap), indent=1, default=_jsonable, allow_nan=False))
 
 
 def add_exits() -> None:

@@ -80,9 +80,8 @@ class GameData:
         return np.vstack([self.sessions[f"v{k}_{value}"] for k in range(len(self.levels) + 1)])
 
 
-def _world_values(s, u, cfg) -> pd.DataFrame:
-    """Loss, what each kind of rescan would find, and size, for one version of reality."""
-    t = session_truth(s, u)
+def _partial_values(t, u, cfg) -> dict:
+    """What a partial check finds, how often it escalates and how many units it covers."""
     detect_partial = np.where(
         u.gt_deliberate & ~u.gt_switched, cfg.partial_detect_deliberate, cfg.partial_detect_nonscan
     )
@@ -95,6 +94,33 @@ def _world_values(s, u, cfg) -> pd.DataFrame:
     hit = 1 - np.exp(pd.Series(np.log1p(-np.minimum(h, 1 - 1e-12))).groupby(by).sum())
     part_units = pd.Series(np.asarray(k)).groupby(by).first()
     no_escalation = u.assign(f=u.loss_price * h).groupby("basket_id").f.sum()
+    full_find = (
+        cfg.full_detect_nonscan * t.gt_nonscan_value
+        - cfg.full_detect_overscan * t.gt_overscan_value
+    ).to_numpy()
+    return {
+        # expected recovery of a partial check: if it finds anything it escalates to a full
+        # check, which then finds what a full rescan would
+        "partial_find": (
+            t.basket_id.map(hit).to_numpy() * full_find
+            if cfg.escalate_partial
+            else t.basket_id.map(no_escalation).fillna(0.0).to_numpy()
+        ),
+        "partial_hit": t.basket_id.map(hit).fillna(0.0).to_numpy(),
+        "partial_units": t.basket_id.map(part_units).to_numpy(),
+    }
+
+
+def _world_values(s, u, cfg, partial_rules: dict | None = None) -> pd.DataFrame:
+    """Loss, what each kind of rescan would find, and size, for one version of reality.
+
+    partial_rules: optional {name: cfg} of other partial-check sizes, stored as
+    partial_find@name, partial_hit@name, partial_units@name (see use_partial_rule).
+    """
+    t = session_truth(s, u)
+    extra = {}
+    for name, c in (partial_rules or {}).items():
+        extra.update({f"{k}@{name}": v for k, v in _partial_values(t, u, c).items()})
     return pd.DataFrame(
         {
             "net_loss": t.gt_net_loss.to_numpy(),
@@ -104,19 +130,8 @@ def _world_values(s, u, cfg) -> pd.DataFrame:
                 cfg.full_detect_nonscan * t.gt_nonscan_value
                 - cfg.full_detect_overscan * t.gt_overscan_value
             ).to_numpy(),
-            # expected recovery of a partial check: if it finds anything it escalates to a full
-            # check, which then finds what a full rescan would
-            "partial_find": (
-                t.basket_id.map(hit).to_numpy()
-                * (
-                    cfg.full_detect_nonscan * t.gt_nonscan_value
-                    - cfg.full_detect_overscan * t.gt_overscan_value
-                ).to_numpy()
-                if cfg.escalate_partial
-                else t.basket_id.map(no_escalation).fillna(0.0).to_numpy()
-            ),
-            "partial_hit": t.basket_id.map(hit).fillna(0.0).to_numpy(),
-            "partial_units": t.basket_id.map(part_units).to_numpy(),
+            **_partial_values(t, u, cfg),
+            **extra,
             "true_units": t.gt_true_units.to_numpy(),
             "nonscan_units": t.gt_nonscan_units.to_numpy(),
         },
@@ -153,8 +168,12 @@ def build_game(
     days: tuple[int, int],
     cfg: SimConfig | None = None,
     levels: tuple = LEVELS,
+    partial_rules: dict | None = None,
 ) -> GameData:
-    """Simulate every version of reality for each SmartShop session in `days`."""
+    """Simulate every version of reality for each SmartShop session in `days`.
+
+    partial_rules: other partial-check sizes to price in the same pass (use_partial_rule).
+    """
     cfg = cfg or SimConfig()
     world = build_world(*load_baskets(con), cfg)
     strategic = world.sessions.gt_type.isin(STRATEGIC).to_numpy()
@@ -167,13 +186,22 @@ def build_game(
         f = np.where(strategic, force, -1)  # non-strategic shoppers decide as usual
         sc = np.where(strategic, scale, 1.0)
         s, u = simulate_behaviour(world, cfg, rescan_prob=0.0, force_intent=f, skip_scale=sc)
-        v = _world_values(s, u, cfg)
+        v = _world_values(s, u, cfg, partial_rules)
         v = v.join(_scores(con, s, u, cfg, base_features, model, cols))
         v["intent"] = s.set_index("basket_id").gt_intent
         out = out.join(v.add_prefix(f"v{k}_"), how="inner")
     cols_score = [f"v{k}_score" for k in range(len(versions))]
     out = out.dropna(subset=cols_score).reset_index().rename(columns={"index": "basket_id"})
     return GameData(sessions=out, cfg=cfg, levels=levels)
+
+
+def use_partial_rule(g: GameData, name: str, cfg: SimConfig) -> GameData:
+    """The same game with partial checks sized by another rule priced in build_game."""
+    s = g.sessions.copy()
+    for k in range(len(g.levels) + 1):
+        for v in ("partial_find", "partial_hit", "partial_units"):
+            s[f"v{k}_{v}"] = s[f"v{k}_{v}@{name}"]
+    return GameData(s, cfg, g.levels)
 
 
 def split_policy(policy, score) -> tuple[np.ndarray, np.ndarray]:
@@ -200,7 +228,17 @@ def responses(g: GameData, policy, q_today: float | None = None) -> np.ndarray:
     if q_today is not None:
         q = np.full((n_v, len(s)), q_today)
     else:
-        q = np.vstack([sum(split_policy(policy, s[f"v{k}_score"].to_numpy())) for k in range(n_v)])
+        w = getattr(cfg, "partial_deterrence", 1.0)
+        rows = []
+        for k in range(n_v):
+            full_p, part_p = split_policy(policy, s[f"v{k}_score"].to_numpy())
+            if w == "share":
+                cover = s[f"v{k}_partial_units"] / s[f"v{k}_true_units"].clip(lower=1)
+                wk = np.clip(cover.to_numpy(), 0, 1)
+            else:
+                wk = float(w)
+            rows.append(full_p + wk * part_p)  # how much the checks deter, as thieves see it
+        q = np.vstack(rows)
     q = np.clip(q, 0, 1)
     typ = s.gt_type.to_numpy()
     full = n_v - 1  # the "take everything" version
@@ -231,8 +269,10 @@ def outcome(g: GameData, policy, today: bool = False) -> dict:
     anything). today=True: today's random partial and full checks.
     """
     s, cfg = g.sessions, g.cfg
-    q_total = cfg.status_quo_partial_rate + cfg.status_quo_full_rate
-    choice = responses(g, policy, q_today=q_total if today else None)
+    if today:
+        rates = (cfg.status_quo_full_rate, cfg.status_quo_partial_rate)
+        policy = lambda score: tuple(np.full(len(score), r) for r in rates)  # noqa: E731
+    choice = responses(g, policy)
     cols = np.arange(len(s))
     pick = lambda value: g.matrix(value)[choice, cols]  # noqa: E731
     net_loss, deliberate, units = pick("net_loss"), pick("deliberate_value"), pick("true_units")

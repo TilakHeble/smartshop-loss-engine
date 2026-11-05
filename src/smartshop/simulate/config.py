@@ -116,6 +116,13 @@ class SimConfig:
     # (v1.4; earlier versions checked a fixed 3 items and stopped there).
     partial_share: float = 0.2
     partial_min_items: int = 2
+    # Optional size bands instead of one share: ((up to n items, share), ...); the last band
+    # covers every larger basket (v1.4 sample-size search, reporting/sample_size.py).
+    partial_bands: tuple | None = None
+    # How much a partial check deters a would-be thief compared with a full one: 1.0 = thieves
+    # fear any check alike (base); 0.5 = half as much; "share" = in proportion to the share of
+    # the basket it covers (thieves who know a sample rarely reaches hidden items). Assumption.
+    partial_deterrence: float | str = 1.0
     escalate_partial: bool = True
 
     # --- What a rescan finds and costs (assumptions) --------------------------------------

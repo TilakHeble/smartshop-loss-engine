@@ -25,6 +25,7 @@
 | Checked today | ~12% of sessions, at random, mostly partial checks of about a fifth of the basket that escalate to a full check if they find anything; \$13 recovered per colleague hour |
 | Recommended policy | **−22% loss**, **5.5x recovered** (\$70 per colleague hour), **−58% honest shoppers stopped** |
 | Partial vs full when targeting | full wins at every mix; making every targeted check partial leaves 12% more loss |
+| Partial check size | 25% of the basket (at least 2 items): within 1.4% of the best under every deterrence assumption; size bands gain nothing |
 | Stress tests | 14 scenarios, loss 5–24% lower in every one |
 | Unseen method (barcode switching, every thief, no retraining) | still 4.8% less loss than today |
 | Measuring loss | averaging targeted rescans overstates loss ~4x; weighting by 1/probability is unbiased (~1%) |
@@ -58,6 +59,9 @@ There were fewer than 1,000 labels in the training period. I compared candidates
 
 **"Don't stores do partial checks? Why does your system only ask for full ones?"**
 They do, and I model them as they work: a colleague checks about a fifth of the basket, and if anything is unscanned the till suggests a full check. That made today's checks stronger than my first version assumed, so I restated the headline against it, and it fell on recovery (7.1x to 5.5x) but held on loss. Then I tested giving medium-risk shoppers a partial check and only the highest-risk a full one. Full checks won at every mix, even short-staffed, because items taken on purpose are usually hidden and a sample rarely reaches them. And only random full checks give unbiased labels.
+
+**"So what percentage of the basket should a partial check cover?"**
+It depends on something nobody has measured: how much a quick check scares a thief. If they fear any check, small samples win, because you can check more people; if they know a sample rarely reaches hidden items, big samples win. So I tested 74 rules under three assumptions and chose the one with the smallest worst case: 25% of every basket, within 1.4% of the best whatever the truth. Different shares by basket size gained nothing worth explaining to colleagues. A trial with a 10% and a 25% arm would settle it.
 
 **"Why did v1.1 catch more when it was meant to be fairer?"**
 The model learned "will a rescan find *anything*", and big baskets nearly always contain an honest slip, so they scored high. But they're also the slowest to rescan. Comparing like with like moved rescans to sessions that look unusual for their size: quicker rescans, more of them, more of them on theft. I chose the strength on the tuning period, not the test period.

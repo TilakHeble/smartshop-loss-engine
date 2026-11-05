@@ -1,4 +1,4 @@
-.PHONY: all mitigation checks exits report dashboard install ingest dbt dbt-docs sample simulate basket risk policy stress bundle weekly demo-bundle serve docker smoke eda test lint clean
+.PHONY: all mitigation checks sample-size exits report dashboard install ingest dbt dbt-docs sample simulate basket risk policy stress bundle weekly demo-bundle serve docker smoke eda test lint clean
 
 RAW_DIR ?= data/raw
 
@@ -56,6 +56,9 @@ mitigation:  # v1.1: size-neutral strength, chosen on the tuning period (~10 min
 
 checks:  # v1.4: partial checks that escalate vs full checks (~10 min)
 	python -m smartshop.reporting.checks
+
+sample-size:  # v1.4: how big a partial check should be (~15 min)
+	python -m smartshop.reporting.sample_size
 
 exits:  # v1.3: cancellations, cancel-and-walk, dead handsets (~3 min)
 	python -m smartshop.reporting.exits

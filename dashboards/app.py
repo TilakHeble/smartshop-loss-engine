@@ -215,6 +215,60 @@ with tabs[0]:
                 "short-staffed. The recommended policy keeps targeted checks full; the 2% random "
                 "floor is always a full check, so training and loss measurement stay unbiased."
             )
+            ss = chk.get("sample_size")
+            if ss:
+                ss = pd.DataFrame(ss)
+                ss["share"] = ss.rule.str.extract(r"(\d+)%", expand=False).astype(int) / 100
+                st.markdown(
+                    "**How big should a partial check be?** A bigger sample finds more per check "
+                    "but takes longer, so fewer shoppers can be checked in the same colleague "
+                    "time. The best size depends on how much a quick check deters a thief, "
+                    "which nobody has measured, so three assumptions are shown."
+                )
+                st.altair_chart(
+                    alt.Chart(ss)
+                    .mark_line(point=True)
+                    .encode(
+                        x=alt.X(
+                            "share:Q",
+                            axis=alt.Axis(format="%", values=[0.1, 0.2, 0.3, 0.4, 0.5, 0.75]),
+                            title="Share of the basket a partial check covers",
+                        ),
+                        y=alt.Y(
+                            "loss vs 20% rule:Q",
+                            axis=alt.Axis(format=".1%"),
+                            title="Loss vs a 20% sample",
+                            scale=alt.Scale(zero=False),
+                        ),
+                        color=alt.Color(
+                            "deterrence:N",
+                            scale=alt.Scale(
+                                domain=[
+                                    "thieves fear any check alike",
+                                    "a partial check deters half as much",
+                                    "deterrence in proportion to items checked",
+                                ],
+                                range=[GREY, ORANGE, BLUE],
+                            ),
+                            legend=alt.Legend(orient="right", title=None, labelLimit=320),
+                        ),
+                        tooltip=[
+                            "deterrence",
+                            alt.Tooltip("share:Q", format=".0%"),
+                            alt.Tooltip("loss vs 20% rule:Q", format="+.2%"),
+                            alt.Tooltip("honest stops vs 20% rule:Q", format="+.1%"),
+                        ],
+                    )
+                    .properties(height=340),
+                    width="stretch",
+                )
+                st.caption(
+                    "Same colleague time, tuning period. Loss moves by only 1-2%: small samples "
+                    "win if thieves fear any check, big ones if they know a sample rarely reaches "
+                    "hidden items. **25% of the basket (at least 2 items)** is within 1.4% of the "
+                    "best whichever is true, and stops about 6% fewer honest shoppers than 20%. "
+                    "Different shares by basket size gained nothing worth the complexity."
+                )
 
     w = pd.DataFrame(d["weekly"])
     w = w[w.sessions >= 0.5 * w.sessions.median()]  # drop the final partial week

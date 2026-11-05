@@ -461,6 +461,20 @@ Up to v1.3 a partial check was modelled as a fixed 3 items that stopped there, w
 
 **In short:** both kinds of check, and escalation, are now in the simulator, the game, the trust cycles and the loss estimate, and a mixed policy (partial for medium risk, full for high) was built and tested. It lost, so the recommended policy keeps targeted checks full. The API therefore still returns `full_rescan` or `no_rescan`; its budget is today's real colleague time, including partial samples and the full checks they escalate to. Full analysis: [`notebooks/11_partial_and_full_checks.ipynb`](../notebooks/11_partial_and_full_checks.ipynb). Produced by `python -m smartshop.reporting.checks` (about 5 minutes).
 
+### How big should a partial check be?
+
+A bigger sample finds more per check but takes longer, so at the same colleague time fewer shoppers can be checked: fewer honest shoppers stopped, but less deterrence. `python -m smartshop.reporting.sample_size` (about 15 minutes) tests 74 rules with today's random checks at today's colleague time: a fixed 3 or 5 items; one share for every basket (10–75%, at least 2 items); and a share by basket size (up to 10 items / 11–30 / over 30). How much a partial check deters a would-be thief has never been measured, so three assumptions are tested: thieves fear any check alike; half as much; or in proportion to the share of the basket checked.
+
+![Partial sample size](../reports/figures/27_partial_sample_size.png)
+
+| Finding | Implication |
+|---|---|
+| The best size depends on that unmeasured assumption: 10% if thieves fear any check alike (more checks, more deterrence), 20–30% if half as much, 50–75% if in proportion to the items checked. Loss moves by only 1–2% across them | No single optimum can honestly be claimed; choose a size that is safe under every assumption |
+| **25% of every basket** is within 1.4% of the best rule under every assumption. Against 20% (test period) it leaves loss unchanged (±0.3%), recovers about 5% more and stops about 6% fewer honest shoppers, at the same colleague time | **Partial checks: 25% of the basket, at least 2 items** |
+| The best rule by basket size (30% up to 30 items, 20% above) is only 0.05 points better in the worst case | Not worth the complexity: one share for every basket; the 2-item minimum covers small baskets |
+| With the 25% rule, a partial check for targeted shoppers still loses to a full one | Targeted checks stay full |
+| The simulator's "today" stays at 20%, so the headline is unchanged | A store trial could compare 25% and 10% arms to measure deterrence directly |
+
 ## Roadmap
 
 **v1: the core system**
@@ -479,6 +493,6 @@ Up to v1.3 a partial check was modelled as a fixed 3 items that stopped there, w
 | 10 ✅ | Streamlit dashboard, fairness check, model card with a data-protection section, business case |
 | v1.1 ✅ | Unseen-theft stress test (barcode switching); size-neutral scores close the age gap and cut loss further |
 | v1.3 ✅ | Sessions that never reach the till: help prompts on cancellation (cancel-and-walk), resume and handset rotation (dead handsets). Replaces a v1.2 cancellation model that misread how SmartShop ends |
-| v1.4 ✅ | Partial checks of 20–25% of the basket that escalate to a full check; today's baseline restated; targeted checks stay full |
+| v1.4 ✅ | Partial checks of 20–25% of the basket that escalate to a full check; today's baseline restated; targeted checks stay full; partial sample size chosen (25%, robust to how much checks deter) |
 
 **v2: after v1**: deliberate vs accidental misses, deterrence value of a rescan, queue-aware capacity, a conformal cap on honest shoppers stopped, data-driven product hotspots, a nudge experiment sized with CUPED, in-app "you might have forgotten…" prompts, scan-time camera verification.

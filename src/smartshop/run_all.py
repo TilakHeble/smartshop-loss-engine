@@ -29,6 +29,7 @@ STEPS = {
     "stress": PY + ["smartshop.experiments.sensitivity"],
     "mitigation": PY + ["smartshop.reporting.mitigation"],
     "checks": PY + ["smartshop.reporting.checks"],
+    "sample_size": PY + ["smartshop.reporting.sample_size"],
     "exits": PY + ["smartshop.reporting.exits"],
     "weekly": PY + ["smartshop.pipeline.weekly"],
     "report": PY + ["smartshop.reporting.snapshot"],
