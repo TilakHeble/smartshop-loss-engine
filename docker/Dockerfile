@@ -1,5 +1,6 @@
-# SmartShop rescan decision API. The model bundle is NOT baked in: it is mounted at
-# /app/artifacts, so the weekly bundle ships without rebuilding the image, and the API
+# SmartShop check decision API. Build from the repo root:
+#   docker build -f docker/Dockerfile -t smartshop-api .
+# The model bundle is NOT baked in: it is mounted at /app/artifacts, so the weekly bundle ships without rebuilding the image, and the API
 # hot-reloads it.
 FROM python:3.13-slim
 

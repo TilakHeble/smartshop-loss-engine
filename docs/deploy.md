@@ -22,7 +22,7 @@ redeploys itself.
 
 ```bash
 make weekly                 # or: make demo-bundle (synthetic bundle, no data needed)
-docker build -t smartshop-api .
+docker build -f docker/Dockerfile -t smartshop-api .
 docker run -d -p 8000:8000 -v "$PWD/artifacts:/app/artifacts:ro" smartshop-api
 python -m smartshop.serving.smoke --url http://localhost:8000
 ```

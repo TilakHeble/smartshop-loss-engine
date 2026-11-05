@@ -32,8 +32,8 @@ import pandas as pd
 from smartshop.config import ROOT
 
 log = logging.getLogger(__name__)
-OUT = ROOT / "models" / "checks.csv"
-OUT_TUNE = ROOT / "models" / "checks_tuning.csv"
+OUT = ROOT / "results" / "checks.csv"
+OUT_TUNE = ROOT / "results" / "checks_tuning.csv"
 FULL_SHARES = (0.0, 0.02, 0.05, 0.1, 0.2, 1.0)  # share of sessions scoring "high"
 N_RUNS = 10
 
@@ -157,7 +157,7 @@ def run() -> dict:
         "Partial checks (about 20-25% of the basket) escalate to a full check when they find "
         "anything. full_share: the share of sessions, by size-adjusted score, whose risk-based "
         "check is full; the rest are partial. The random floor is always a full check. "
-        "Chosen on the tuning period (models/checks_tuning.csv)."
+        "Chosen on the tuning period (results/checks_tuning.csv)."
     )
     POLICY_PATH.write_text(json.dumps(policy_json, indent=2))
     return {"table": table, "tune": tune, "best_share": best_share}

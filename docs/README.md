@@ -10,4 +10,4 @@
 | [Interview notes](interview_notes.md) | the project in 30 seconds and 2 minutes, the numbers to remember, and answers to the hardest questions | 3 pages |
 | [Deploy guide](deploy.md) | putting the dashboard online and running the decision API in Docker | 1 page |
 
-The analysis itself is in the [notebooks](../notebooks/), also saved as web pages in [reports/](../reports/) so they can be read without running anything.
+The analysis itself is in the [notebooks](../notebooks/), which GitHub displays in the browser, so they can be read without running anything. Every chart is in [figures/](figures/), and the tables behind them are in [results/](../results/).

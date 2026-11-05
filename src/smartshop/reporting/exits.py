@@ -3,11 +3,11 @@
 Colleagues carry no device, and customers pick their own handset, so v1.5 uses only what the
 store has (policy/exits.py, ops/handsets.py):
 
-models/handsets.csv          dead handsets per 1,000 sessions: today, A, B, A+B (5 fleets)
-models/handset_screen.csv    idea B: how long a handset must charge before it stops asking
-models/exits.csv             today vs ideas 1 and 1+2, by world
-models/exits_fairness.csv    idea 2: honest members given a full check, by group
-models/exits_summary.json    headline numbers for the dashboard and docs
+results/handsets.csv          dead handsets per 1,000 sessions: today, A, B, A+B (5 fleets)
+results/handset_screen.csv    idea B: how long a handset must charge before it stops asking
+results/exits.csv             today vs ideas 1 and 1+2, by world
+results/exits_fairness.csv    idea 2: honest members given a full check, by group
+results/exits_summary.json    headline numbers for the dashboard and docs
 
 python -m smartshop.reporting.exits      (about 3 minutes)
 """
@@ -41,7 +41,7 @@ from smartshop.policy.exits import (
 )
 
 log = logging.getLogger(__name__)
-OUT = ROOT / "models"
+OUT = ROOT / "results"
 TEST = (501, 711)
 SCREEN_GRID = (15.0, 30.0, 60.0, 90.0, 120.0)
 

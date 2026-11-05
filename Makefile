@@ -42,7 +42,7 @@ serve:
 	uvicorn smartshop.serving.app:app --reload --port 8000
 
 docker:
-	docker build -t smartshop-api .
+	docker build -f docker/Dockerfile -t smartshop-api .
 	docker run --rm -d --name smartshop-api -p 8000:8000 -v "$(PWD)/artifacts:/app/artifacts:ro" smartshop-api
 
 smoke:
@@ -85,7 +85,6 @@ eda:
 	jupyter nbconvert --to notebook --execute --inplace notebooks/09_unseen_theft_and_size_neutral.ipynb
 	jupyter nbconvert --to notebook --execute --inplace notebooks/10_cancellations_and_dead_handsets.ipynb
 	jupyter nbconvert --to notebook --execute --inplace notebooks/11_partial_and_full_checks.ipynb
-	jupyter nbconvert --to html notebooks/*.ipynb --output-dir reports
 
 test:
 	pytest -q

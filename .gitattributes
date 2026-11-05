@@ -1,3 +1,2 @@
-# Keep GitHub's language bar about the code: exported reports and notebooks are documentation
-reports/*.html linguist-generated
+# Keep GitHub's language bar about the code: notebooks are documentation
 notebooks/*.ipynb linguist-documentation

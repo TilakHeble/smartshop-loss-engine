@@ -12,7 +12,7 @@ DATA_DIR = ROOT / "data"
 RAW_DIR = DATA_DIR / "raw"
 PROCESSED_DIR = DATA_DIR / "processed"
 WAREHOUSE_PATH = DATA_DIR / "warehouse" / "smartshop.duckdb"
-FIGURES_DIR = ROOT / "reports" / "figures"
+FIGURES_DIR = ROOT / "docs" / "figures"
 DBT_DIR = ROOT / "dbt"
 SEEDS_DIR = DBT_DIR / "seeds"
 

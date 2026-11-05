@@ -9,7 +9,7 @@ feature (it needs minutes of basket scoring per world); the base scenario is rer
 so every comparison is like for like.
 
 Run:
-    python -m smartshop.experiments.sensitivity        # writes models/sensitivity.csv
+    python -m smartshop.experiments.sensitivity        # writes results/sensitivity.csv
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ from smartshop.simulate.simulator import simulate, write
 from smartshop.warehouse import connect
 
 log = logging.getLogger(__name__)
-OUT = ROOT / "models" / "sensitivity.csv"
+OUT = ROOT / "results" / "sensitivity.csv"
 BASE = SimConfig()
 
 

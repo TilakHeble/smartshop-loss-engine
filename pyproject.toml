@@ -25,7 +25,7 @@ dependencies = [
 [project.optional-dependencies]
 dashboard = ["streamlit>=1.50", "altair>=5"]
 serve = ["fastapi>=0.110", "uvicorn[standard]>=0.29", "pydantic>=2.6", "httpx"]
-dev = ["pytest>=8.0", "pytest-cov", "ruff>=0.5", "pre-commit", "jupyter", "nbconvert", "dbt-duckdb>=1.9"]
+dev = ["pytest>=8.0", "pytest-cov", "ruff>=0.5", "jupyter", "nbconvert", "dbt-duckdb>=1.9"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

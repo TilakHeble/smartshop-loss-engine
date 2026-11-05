@@ -36,7 +36,7 @@ jobs:
       # same pinned scikit-learn as the image, so the bundle loads inside the container
       - run: pip install -r docker/requirements-serve.txt lightgbm duckdb && pip install --no-deps -e .
       - run: python -m smartshop.serving.demo_bundle --out artifacts && chmod -R a+rX artifacts
-      - run: docker build -t smartshop-api .
+      - run: docker build -f docker/Dockerfile -t smartshop-api .
       - run: docker run -d --name api -p 8000:8000 -v "$PWD/artifacts:/app/artifacts:ro" smartshop-api
       - run: python -m smartshop.serving.smoke --url http://localhost:8000 --wait 90
       - name: container health

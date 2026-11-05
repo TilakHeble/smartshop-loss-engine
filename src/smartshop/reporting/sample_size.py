@@ -31,9 +31,9 @@ import pandas as pd
 from smartshop.config import ROOT
 
 log = logging.getLogger(__name__)
-OUT_TUNE = ROOT / "models" / "sample_size_tuning.csv"
-OUT_TEST = ROOT / "models" / "sample_size.csv"
-OUT_RULE = ROOT / "models" / "sample_size_rule.json"
+OUT_TUNE = ROOT / "results" / "sample_size_tuning.csv"
+OUT_TEST = ROOT / "results" / "sample_size.csv"
+OUT_RULE = ROOT / "results" / "sample_size_rule.json"
 FULL_RANDOM = 0.02  # today's random full checks (and the policy's floor), kept as they are
 REF = "20% of every basket"
 DETERRENCE = {

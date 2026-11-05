@@ -362,7 +362,7 @@ def build_bundle(
     )
 
     recent = recent.assign(risk_score=raw, size_adjusted_score=score, p=p, cost_s=cost)
-    # v1.5 idea 2: a full check after unfinished cancels (models/exits.csv chose the rule)
+    # v1.5 idea 2: a full check after unfinished cancels (results/exits.csv chose the rule)
     exits = {"unfinished_cancels": dict(UNFINISHED_RULE)}
 
     # Drift reference: the latest cycle, i.e. what this bundle was calibrated on. Not the whole

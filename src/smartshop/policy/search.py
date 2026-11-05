@@ -39,7 +39,7 @@ from smartshop.risk.model import load_features
 from smartshop.warehouse import connect
 
 log = logging.getLogger(__name__)
-POLICY_PATH = ROOT / "models" / "policy.json"
+POLICY_PATH = ROOT / "results" / "policy.json"
 FLOOR = 0.02  # random full rescans for every session: unbiased measurement and training labels
 
 FAMILIES = {

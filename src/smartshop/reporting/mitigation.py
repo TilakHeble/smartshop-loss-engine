@@ -26,7 +26,7 @@ from smartshop.policy.neutral import SizeNeutraliser, neutralised_game
 from smartshop.reporting.fairness import fairness_table, session_attributes
 
 log = logging.getLogger(__name__)
-OUT = ROOT / "models" / "fairness_mitigation.csv"
+OUT = ROOT / "results" / "fairness_mitigation.csv"
 STRENGTHS = (0.0, 0.25, 0.5, 0.75, 1.0)
 N_RUNS = 10
 

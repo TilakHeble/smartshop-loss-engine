@@ -16,7 +16,7 @@ The project was built in ten weekly steps and then improved four times. Each sec
 
 [dunnhumby — *The Complete Journey*](https://www.dunnhumby.com/source-files/), weeks 17–102: 2.35m scanned item lines, 230k trips, 2,492 members, 532 stores. Amounts in US dollars, as recorded.
 
-![Targeted vs random partial rescan](../reports/figures/02_targeted_vs_random_check.png)
+![Targeted vs random partial rescan](figures/02_targeted_vs_random_check.png)
 
 | # | Finding | Decision |
 |---|---|---|
@@ -28,7 +28,7 @@ The project was built in ten weekly steps and then improved four times. Each sec
 | 6 | 4pm–7pm carries 30% of daytime trips; the busiest hour is 1.7x the average | Rescan capacity moves during the day (v2: queue-aware capacity) |
 | 7 | 89% of trips come with 10+ earlier trips by the same member; 91% of members use 2+ stores and 56% make over 20% of trips away from their main store | Trust needs member-level history via Nectar, not per-store history |
 
-![Nectar price overstatement](../reports/figures/04_nectar_price_overstatement.png)
+![Nectar price overstatement](figures/04_nectar_price_overstatement.png)
 
 Full analysis: [`notebooks/01_eda.ipynb`](../notebooks/01_eda.ipynb) (HTML export in `reports/`).
 
@@ -91,7 +91,7 @@ Every SmartShop session is Nectar-linked: [Sainsbury's requires a Nectar card](h
 | Sessions rescanned today | 12% | ~12% |
 | Partial rescans that find an error | 3.0% | 2.88% |
 
-![Error curve calibration](../reports/figures/07_error_curve_calibration.png)
+![Error curve calibration](figures/07_error_curve_calibration.png)
 
 **Design choices that matter later**
 - **Truth and observations are separated.** Models only ever read `sim_obs` (sessions, scan events, rescan results). The hidden truth sits in `sim_truth`, and a test fails if any `gt_` column reaches `sim_obs`.
@@ -107,7 +107,7 @@ Every SmartShop session is Nectar-linked: [Sainsbury's requires a Nectar card](h
 | Random partial rescans put loss at 0.23% of sales, about a ninth of the truth (2.04%); random full rescans estimate 1.97% (95% CI 1.51–2.45%) | Measure loss with a random floor of *full* rescans, never from partial checks (as [ECR] found in practice) |
 | Today's random rescans: 221 colleague hours recover \$10.94 an hour and 3.1% of loss; 96% of rescans stop someone who skipped nothing on purpose | **The baseline the policy must beat** |
 
-![What rescans measure](../reports/figures/09_what_rescans_measure.png)
+![What rescans measure](figures/09_what_rescans_measure.png)
 
 Full validation: [`notebooks/02_simulator.ipynb`](../notebooks/02_simulator.ipynb). Results are claims that *the method recovers the known truth*, not that it would cut Sainsbury's loss by a given amount; week 8 reruns the comparison under lower and higher loss settings.
 
@@ -118,7 +118,7 @@ Full validation: [`notebooks/02_simulator.ipynb`](../notebooks/02_simulator.ipyn
 - **Masked-basket training.** Staffed-till baskets are complete: hide 10% of their units at random and train LightGBM to say where they were, from the visible rest and the member's Nectar history (earlier trips only; for SmartShop trips, only what was scanned). No theft label is ever used. Held-out AUC 0.93, calibrated (mean prediction 0.26% vs 0.25% actual).
 - **A fair test.** Every method gets the same budget of units a colleague may count per session, and the simulator's detection rules: mistakes are found when their type is counted; items skipped on purpose are usually concealed outside the bags, so *any* partial check rarely finds them.
 
-![Basket model check lists](../reports/figures/10_basket_model_recall.png)
+![Basket model check lists](figures/10_basket_model_recall.png)
 
 | Finding | Implication |
 |---|---|
@@ -135,7 +135,7 @@ Week 4 showed partial checks rarely find items skipped on purpose (they are conc
 - **Only what a store can observe.** Features: the session's scan log (pauses, pace, deletions, what was scanned) and the member's history from earlier trips (Nectar purchases, earlier sessions, earlier rescan outcomes, the basket model's "looks incomplete" gap). Labels: what *random full* rescans found: unbiased, but only 926 in the training period.
 - **Honest selection.** Label, features and model chosen by repeated cross-validation of *observable* value capture on those rescans; the hidden truth is used once, at the end. Chosen: logistic regression on 27 features, so every flag comes with plain-English reasons ("long pause between scans; usually deletes a lot").
 
-![Risk capture curve](../reports/figures/11_risk_capture_curve.png)
+![Risk capture curve](figures/11_risk_capture_curve.png)
 
 | Flag the top 12% (today's rescan rate) | Deliberate loss caught | Net loss caught |
 |---|---|---|
@@ -165,7 +165,7 @@ The policy decides **who gets a full rescan, with what probability**, using exac
 - **The game.** The store leads: it commits to a function from risk score to rescan probability. Shoppers follow: opportunists steal less when a rescan is likelier; adaptive shoppers choose to take 0, 25, 50 or 100% of their usual haul, since taking less keeps their scan log calmer and their score lower. Every version of reality is simulated once from the same random draws, so any policy is evaluated exactly against shoppers' best responses.
 - **Fair comparison.** Policy shapes are fitted on the tuning period (days 331–500); the test period only evaluates, with volume set to today's 113 colleague hours. Every policy keeps the **2% random floor** of full rescans: unbiased measurement and training labels.
 
-![Policy frontier](../reports/figures/13_policy_frontier.png)
+![Policy frontier](figures/13_policy_frontier.png)
 
 | Same colleague time (test period) | Loss remaining | Recovered | Per colleague hour | Honest shoppers stopped |
 |---|---|---|---|---|
@@ -182,7 +182,7 @@ The policy decides **who gets a full rescan, with what probability**, using exac
 | Without a cap, some honest members would be rescanned on nearly every trip; a cap of 0.5 stops that for about 3% more loss, but moves group gaps only a little | Cap 0.5 recommended; age, household and income gaps stay a monitored review item (week 10) |
 | Today's many cheap partial rescans do deter opportunists (18% steal vs 22% under fewer, full rescans) | A deliberate trade: a little less deterrence for about 5x the recovery |
 
-![Static vs strategic](../reports/figures/14_static_vs_strategic.png)
+![Static vs strategic](figures/14_static_vs_strategic.png)
 
 Full analysis: [`notebooks/05_rescan_policy.ipynb`](../notebooks/05_rescan_policy.ipynb). The game is one session at a time (member history held at today's); week 8 stress-tests the shoppers' assumed penalty and sensitivity.
 
@@ -192,7 +192,7 @@ Two ideas tested on the rescan game, with colleague time held at today's level.
 
 **Nectar-linked trust**, played over four rescan cycles: each cycle's rescans (drawn at the policy's probabilities) update trust for the next, and shoppers respond to the probabilities they face.
 
-![Trust and repeat stops](../reports/figures/15_trust_repeat_stops.png)
+![Trust and repeat stops](figures/15_trust_repeat_stops.png)
 
 | Finding | Implication |
 |---|---|
@@ -203,7 +203,7 @@ Two ideas tested on the rescan game, with colleague time held at today's level.
 
 **Targeted checks** (week 4's lists) against full rescans, per colleague-minute, at three risk bands under the recommended policy:
 
-![Targeted vs full](../reports/figures/16_targeted_vs_full.png)
+![Targeted vs full](figures/16_targeted_vs_full.png)
 
 | Finding | Implication |
 |---|---|
@@ -228,7 +228,7 @@ Full analysis: [`notebooks/06_trust_and_targeting.ipynb`](../notebooks/06_trust_
 
 **Measuring loss once rescans are targeted.** Rescanned sessions are no longer a random sample. Over 30 runs:
 
-![Loss measurement](../reports/figures/18_loss_measurement.png)
+![Loss measurement](figures/18_loss_measurement.png)
 
 | Estimate of total loss | Bias | Typical error per period |
 |---|---|---|
@@ -240,7 +240,7 @@ So every rescan's probability is logged with its outcome (the API returns it wit
 
 **Stress tests.** Ten scenarios, each changing one assumption and rerunning the whole chain (simulate, retrain the risk model, refit the policy, compare at today's colleague time):
 
-![Sensitivity](../reports/figures/19_sensitivity.png)
+![Sensitivity](figures/19_sensitivity.png)
 
 | Finding | Implication |
 |---|---|
@@ -322,7 +322,7 @@ make docker && make smoke   # build, start on ./artifacts, smoke-test
 
 **The full fairness check** runs on the policy as it would operate (shoppers respond, trust updates over four cycles). The harm is being asked for a rescan **when honest**.
 
-![Fairness by group](../reports/figures/20_fairness_groups.png)
+![Fairness by group](figures/20_fairness_groups.png)
 
 | Attribute | Four-fifths ratio | At equal basket sizes | Random groups of the same sizes | Verdict |
 |---|---|---|---|---|
@@ -338,7 +338,7 @@ make docker && make smoke   # build, start on ./artifacts, smoke-test
 | Younger family households are stopped about 1.6x as often as the oldest when honest, driven by basket-level features (bigger baskets) | Age is a protected characteristic: a recorded business and legal decision before rollout, monitored in the trial; mitigation options in the [model card](model_card.md#fairness) |
 | A store-level randomised trial needs roughly 40–100 stores per arm (matched pairs, baseline adjustment), with loss measured from random full rescans in both arms (about 23% error per store) | Feasible in one region of a large chain; a shadow-mode pilot comes first ([business case](business_case.md#how-to-prove-it-in-real-stores)) |
 
-![Trial sizing](../reports/figures/21_trial_sizing.png)
+![Trial sizing](figures/21_trial_sizing.png)
 
 **[Live dashboard](https://smartshop-loss-engine.streamlit.app/)** (or `make dashboard` locally): headline and weekly trends, where rescans go and what they find, the policy curve with a single-decision explorer, rescans by hour per store, fairness by group, loss measurement, an interactive trial-size calculator, stress tests, and the latest weekly job's gates and drift. It reads only an aggregate snapshot (no member, household or basket identifiers), so it can be deployed publicly; [docs/deploy.md](deploy.md) has the steps.
 
@@ -352,7 +352,7 @@ Two questions a reviewer would ask after week 10, both answered by rerunning the
 
 **1. "The model only finds the signals you put in the simulator."** So add a theft method it was never designed around: **barcode switching**, where a shopper scans a cheap item's barcode for an expensive one. The count of scans matches the basket, the pace is normal and nothing is deleted, so the strongest scan-log signals vanish. Each switching world runs twice: with the model retrained on that world's random full rescans, and with the model and policy built before switching existed (only rescan volume reset), as if the method appeared after deployment.
 
-![Barcode switching](../reports/figures/22_barcode_switching.png)
+![Barcode switching](figures/22_barcode_switching.png)
 
 | Every thief switches barcodes | Loss vs today (v1.0 / v1.1) | Recovery (v1.0 / v1.1) | Deliberate loss in top 12% of scores |
 |---|---|---|---|
@@ -364,7 +364,7 @@ The gain shrinks, as it should, but never reverses: honest stops still fall by a
 
 **2. The age gap.** Week 10 found younger family households stopped about 1.6x as often as the oldest when honest, because their baskets are bigger. The risk model learns "will a rescan find *anything*", and big baskets nearly always hold an honest slip, so raw scores favour them; they are also the slowest to rescan. The fix scores each session against sessions of a similar size (its rank within a band of units scanned, mapped back to the overall score scale), blended with the raw score at a chosen strength. It uses only what the store sees; no demographics.
 
-![Size-neutral scores](../reports/figures/23_size_neutral.png)
+![Size-neutral scores](figures/23_size_neutral.png)
 
 | Size-neutral strength (test period, as deployed) | Loss vs today | Recovery | Honest stops | Age four-fifths ratio | New-user ratio |
 |---|---|---|---|---|---|
@@ -411,7 +411,7 @@ Genuine cancellations and cancel-and-walk can both happen early or late, so timi
 | Handset or phone dies | Customer rescans everything | **Resume** on another handset or at a till from the Nectar card; never a risk signal |
 | Handsets handed out | Whichever the customer grabs | **Longest on the rack first**, and handsets that keep dying sent for a new battery, from the handset log alone (the handsets show no battery level) |
 
-![Cancel-and-walk](../reports/figures/25_cancel_and_walk.png)
+![Cancel-and-walk](figures/25_cancel_and_walk.png)
 
 | Test period, base assumptions | Today | Help every cancellation | Help higher-risk only |
 |---|---|---|---|
@@ -422,7 +422,7 @@ Genuine cancellations and cancel-and-walk can both happen early or late, so timi
 | Dead handsets | 120 | **9** | 9 |
 | Customer hours lost to dead devices | 11.0 | **1.2** | 1.2 |
 
-![Dead handsets](../reports/figures/24_dead_handsets.png)
+![Dead handsets](figures/24_dead_handsets.png)
 
 | Finding | Implication |
 |---|---|
@@ -452,7 +452,7 @@ Up to v1.3 a partial check was modelled as a fixed 3 items that stopped there, w
 | Recovered per colleague hour | \$11 | \$13 | **\$70** |
 | Honest shoppers stopped | 5,428 | 5,428 | **2,270 (−58%)** |
 
-![Partial vs full](../reports/figures/26_partial_vs_full.png)
+![Partial vs full](figures/26_partial_vs_full.png)
 
 | Finding | Implication |
 |---|---|
@@ -467,7 +467,7 @@ Up to v1.3 a partial check was modelled as a fixed 3 items that stopped there, w
 
 A bigger sample finds more per check but takes longer, so at the same colleague time fewer shoppers can be checked: fewer honest shoppers stopped, but less deterrence. `python -m smartshop.reporting.sample_size` (about 15 minutes) tests 74 rules with today's random checks at today's colleague time: a fixed 3 or 5 items; one share for every basket (10–75%, at least 2 items); and a share by basket size (up to 10 items / 11–30 / over 30). How much a partial check deters a would-be thief has never been measured, so three assumptions are tested: thieves fear any check alike; half as much; or in proportion to the share of the basket checked.
 
-![Partial sample size](../reports/figures/27_partial_sample_size.png)
+![Partial sample size](figures/27_partial_sample_size.png)
 
 | Finding | Implication |
 |---|---|

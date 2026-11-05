@@ -33,7 +33,7 @@ from smartshop.risk.transforms import signed_log
 from smartshop.warehouse import connect
 
 log = logging.getLogger(__name__)
-MODEL_DIR = ROOT / "models"
+MODEL_DIR = ROOT / "results"
 MODEL_PATH = MODEL_DIR / "risk_model.joblib"
 METRICS_PATH = MODEL_DIR / "risk_metrics.json"
 GAP_CACHE = PROCESSED_DIR / "basket_gap.parquet"

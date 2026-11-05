@@ -1,9 +1,9 @@
 """Week 10 reporting run: plays the recommended policy and writes everything the dashboard,
 the fairness check, the model card and the business case use.
 
-    models/fairness.csv            the full fairness check (one row per attribute)
-    models/fairness_groups.csv     honest-stop rate of every group
-    models/trial_sizing.csv        stores per arm for the store-level trial
+    results/fairness.csv            the full fairness check (one row per attribute)
+    results/fairness_groups.csv     honest-stop rate of every group
+    results/trial_sizing.csv        stores per arm for the store-level trial
     dashboards/snapshot/snapshot.json   aggregate-only snapshot for the Streamlit dashboard
 
 The snapshot holds aggregates only (no member, household or basket identifiers), so the
@@ -123,8 +123,8 @@ def build() -> dict:
     )
     fair = fairness_table(per_session, today_rate)
     groups = group_rates(per_session, today_rate)
-    fair.to_csv(ROOT / "models" / f"fairness{suffix}.csv")
-    groups.to_csv(ROOT / "models" / f"fairness_groups{suffix}.csv", index=False)
+    fair.to_csv(ROOT / "results" / f"fairness{suffix}.csv")
+    groups.to_csv(ROOT / "results" / f"fairness_groups{suffix}.csv", index=False)
 
     # ---- measurement over the same runs ----
     est = pd.DataFrame(est_rows)
@@ -146,7 +146,7 @@ def build() -> dict:
 
     # ---- trial sizing: both arms measured from their random full rescans (2% floor) ----
     sizing = sizing_table(EFFECT, floor_error, len(g))
-    sizing.to_csv(ROOT / "models" / f"trial_sizing{suffix}.csv")
+    sizing.to_csv(ROOT / "results" / f"trial_sizing{suffix}.csv")
 
     # ---- operations: rescans by hour of day ----
     hours = attrs.set_index("basket_id").hour_of_day
@@ -209,7 +209,7 @@ def build() -> dict:
         weekly_job = {k: rec[k] for k in ["run_at", "candidate", "published", "checks"]}
         weekly_job["drift"] = (rec.get("drift") or [])[:10]
 
-    sens = pd.read_csv(ROOT / "models" / "sensitivity.csv")
+    sens = pd.read_csv(ROOT / "results" / "sensitivity.csv")
     weekly = _weekly(g, reals, lambda gw: outcome(gw, None, today=True))
 
     snap = {
@@ -230,8 +230,8 @@ def build() -> dict:
             k: float(v10[k])
             for k in ["loss_remaining", "recovered", "honest_stops", "colleague_hours"]
         },
-        "mitigation": pd.read_csv(ROOT / "models" / "fairness_mitigation.csv").to_dict("records")
-        if (ROOT / "models" / "fairness_mitigation.csv").exists()
+        "mitigation": pd.read_csv(ROOT / "results" / "fairness_mitigation.csv").to_dict("records")
+        if (ROOT / "results" / "fairness_mitigation.csv").exists()
         else None,
         "trust_rule": json.loads(POLICY_PATH.read_text()).get("trust_rule"),
         "headline": {
@@ -280,8 +280,8 @@ def build() -> dict:
 
 
 def exits_block() -> dict | None:
-    """v1.5 results (models/exits*.csv, handsets.csv from smartshop.reporting.exits)."""
-    m = ROOT / "models"
+    """v1.5 results (results/exits*.csv, handsets.csv from smartshop.reporting.exits)."""
+    m = ROOT / "results"
     files = ["exits.csv", "handsets.csv", "exits_fairness.csv", "exits_summary.json"]
     if not all((m / f).exists() for f in files):
         return None
@@ -294,8 +294,8 @@ def exits_block() -> dict | None:
 
 
 def checks_block() -> dict | None:
-    """v1.4 results (models/checks*.csv from smartshop.reporting.checks)."""
-    m = ROOT / "models"
+    """v1.4 results (results/checks*.csv from smartshop.reporting.checks)."""
+    m = ROOT / "results"
     if not ((m / "checks.csv").exists() and (m / "checks_tuning.csv").exists()):
         return None
     return {
